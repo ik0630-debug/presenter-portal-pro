@@ -31,12 +31,12 @@ Deno.serve(async (req) => {
       .from('project_speakers')
       .select(`
         *,
-        projects:project_id (
+        projects!project_id (
           name,
           event_date,
           venue
         ),
-        suppliers:supplier_id (
+        suppliers!supplier_id (
           name,
           email
         )
