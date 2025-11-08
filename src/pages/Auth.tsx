@@ -17,6 +17,38 @@ const Auth = () => {
     e.preventDefault();
     setIsLoading(true);
 
+    // 임시: 인증 비활성화 - 모든 입력 허용
+    try {
+      if (!email || !speakerId) {
+        toast.error("이메일과 발표자 ID를 모두 입력해주세요.");
+        setIsLoading(false);
+        return;
+      }
+
+      // 임시 세션 정보 생성
+      const tempSession = {
+        id: speakerId,
+        email: email,
+        name: "테스트 발표자",
+        speakerId: speakerId,
+        eventName: "테스트 행사",
+        presentationDate: new Date().toISOString(),
+      };
+
+      // Store session in localStorage
+      localStorage.setItem('speakerSession', JSON.stringify(tempSession));
+      
+      toast.success("로그인 성공!");
+      navigate("/dashboard");
+    } catch (error) {
+      console.error('Login error:', error);
+      toast.error("로그인 중 오류가 발생했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
+
+    /* 
+    // TODO: 나중에 실제 인증 활성화
     try {
       // Verify speaker with external DB
       const { data, error } = await supabase.functions.invoke('verify-speaker', {
@@ -60,6 +92,7 @@ const Auth = () => {
     } finally {
       setIsLoading(false);
     }
+    */
   };
 
   return (
