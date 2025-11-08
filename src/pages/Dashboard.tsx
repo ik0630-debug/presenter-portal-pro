@@ -1,19 +1,29 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, FileText, CheckSquare, Info, LogOut, DollarSign, MapPin } from "lucide-react";
+import { LogOut, CheckCircle2, Circle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { Progress } from "@/components/ui/progress";
+import SpeakerConfirmation from "@/components/dashboard/SpeakerConfirmation";
+import ConsentChecklist from "@/components/dashboard/ConsentChecklist";
 import PresentationUpload from "@/components/dashboard/PresentationUpload";
 import PresentationInfo from "@/components/dashboard/PresentationInfo";
-import ConsentChecklist from "@/components/dashboard/ConsentChecklist";
-import OrganizerInfo from "@/components/dashboard/OrganizerInfo";
 import HonorariumInfo from "@/components/dashboard/HonorariumInfo";
 import ArrivalGuide from "@/components/dashboard/ArrivalGuide";
 
+const STEPS = [
+  { id: 'confirm', label: '발표자 확인', component: null },
+  { id: 'consent', label: '동의서', component: ConsentChecklist },
+  { id: 'upload', label: '자료 업로드', component: PresentationUpload },
+  { id: 'info', label: '발표 정보', component: PresentationInfo },
+  { id: 'honorarium', label: '강연료', component: HonorariumInfo },
+  { id: 'arrival', label: '현장 안내', component: ArrivalGuide },
+];
+
 const Dashboard = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("project");
+  const [showConfirmation, setShowConfirmation] = useState(true);
+  const [currentStep, setCurrentStep] = useState(0);
   const [speakerName, setSpeakerName] = useState("발표자");
 
   useEffect(() => {
@@ -24,10 +34,36 @@ const Dashboard = () => {
     }
   }, []);
 
+  const handleConfirmation = () => {
+    setShowConfirmation(false);
+    setCurrentStep(1); // 동의서 단계로 시작
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('speakerSession');
     navigate("/auth");
   };
+
+  const handleNext = () => {
+    if (currentStep < STEPS.length - 1) {
+      setCurrentStep(currentStep + 1);
+      window.scrollTo(0, 0);
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+      window.scrollTo(0, 0);
+    }
+  };
+
+  const progress = ((currentStep) / (STEPS.length - 1)) * 100;
+  const CurrentStepComponent = STEPS[currentStep]?.component;
+
+  if (showConfirmation) {
+    return <SpeakerConfirmation onConfirm={handleConfirmation} />;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
@@ -35,9 +71,9 @@ const Dashboard = () => {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-              발표자 대시보드
+              발표자 포털
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">{speakerName} 님 환영합니다</p>
+            <p className="text-sm text-muted-foreground mt-1">{speakerName} 님</p>
           </div>
           <Button variant="outline" onClick={handleLogout} className="gap-2">
             <LogOut className="h-4 w-4" />
@@ -46,69 +82,91 @@ const Dashboard = () => {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-8 max-w-4xl">
+        {/* Progress Bar */}
+        <Card className="mb-6 shadow-elevated">
+          <CardContent className="pt-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold">진행 상황</h2>
+                  <p className="text-sm text-muted-foreground">
+                    {currentStep}/{STEPS.length - 1} 단계 완료
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-primary">{Math.round(progress)}%</p>
+                </div>
+              </div>
+              <Progress value={progress} className="h-2" />
+              
+              {/* Step Indicators */}
+              <div className="flex justify-between pt-2">
+                {STEPS.slice(1).map((step, index) => {
+                  const stepNumber = index + 1;
+                  const isActive = stepNumber === currentStep;
+                  const isCompleted = stepNumber < currentStep;
+                  
+                  return (
+                    <div key={step.id} className="flex flex-col items-center gap-2 flex-1">
+                      <div className={`
+                        w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors
+                        ${isCompleted ? 'bg-primary text-primary-foreground' : 
+                          isActive ? 'bg-primary text-primary-foreground' : 
+                          'bg-muted text-muted-foreground'}
+                      `}>
+                        {isCompleted ? (
+                          <CheckCircle2 className="h-5 w-5" />
+                        ) : (
+                          <Circle className="h-5 w-5" />
+                        )}
+                      </div>
+                      <span className={`text-xs text-center hidden sm:block ${isActive ? 'font-semibold' : ''}`}>
+                        {step.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Current Step Content */}
         <Card className="shadow-elevated animate-fade-in">
           <CardHeader>
-            <CardTitle className="text-xl">발표 정보 관리</CardTitle>
+            <CardTitle className="text-xl">{STEPS[currentStep].label}</CardTitle>
             <CardDescription>
-              발표자료 업로드 및 관련 정보를 입력해주세요
+              {currentStep === 1 && "발표 진행을 위해 동의서를 작성해주세요"}
+              {currentStep === 2 && "발표 자료를 업로드해주세요"}
+              {currentStep === 3 && "발표 관련 정보를 입력해주세요"}
+              {currentStep === 4 && "강연료 지급을 위한 정보를 입력해주세요"}
+              {currentStep === 5 && "현장 도착 안내를 확인해주세요"}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-              <TabsList className="grid w-full grid-cols-6 gap-2">
-                <TabsTrigger value="project" className="gap-2">
-                  <Info className="h-4 w-4" />
-                  <span className="hidden sm:inline">프로젝트</span>
-                </TabsTrigger>
-                <TabsTrigger value="upload" className="gap-2">
-                  <Upload className="h-4 w-4" />
-                  <span className="hidden sm:inline">자료 업로드</span>
-                </TabsTrigger>
-                <TabsTrigger value="info" className="gap-2">
-                  <FileText className="h-4 w-4" />
-                  <span className="hidden sm:inline">발표 정보</span>
-                </TabsTrigger>
-                <TabsTrigger value="consent" className="gap-2">
-                  <CheckSquare className="h-4 w-4" />
-                  <span className="hidden sm:inline">동의서</span>
-                </TabsTrigger>
-                <TabsTrigger value="honorarium" className="gap-2">
-                  <DollarSign className="h-4 w-4" />
-                  <span className="hidden sm:inline">강연료</span>
-                </TabsTrigger>
-                <TabsTrigger value="arrival" className="gap-2">
-                  <MapPin className="h-4 w-4" />
-                  <span className="hidden sm:inline">도착 안내</span>
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="project" className="space-y-4">
-                <OrganizerInfo />
-              </TabsContent>
-
-              <TabsContent value="upload" className="space-y-4">
-                <PresentationUpload />
-              </TabsContent>
-
-              <TabsContent value="info" className="space-y-4">
-                <PresentationInfo />
-              </TabsContent>
-
-              <TabsContent value="consent" className="space-y-4">
-                <ConsentChecklist />
-              </TabsContent>
-
-              <TabsContent value="honorarium" className="space-y-4">
-                <HonorariumInfo />
-              </TabsContent>
-
-              <TabsContent value="arrival" className="space-y-4">
-                <ArrivalGuide />
-              </TabsContent>
-            </Tabs>
+            {CurrentStepComponent && <CurrentStepComponent />}
           </CardContent>
         </Card>
+
+        {/* Navigation Buttons */}
+        <div className="flex gap-4 mt-6">
+          <Button
+            variant="outline"
+            onClick={handlePrevious}
+            disabled={currentStep <= 1}
+            className="flex-1"
+          >
+            이전 단계
+          </Button>
+          <Button
+            onClick={handleNext}
+            disabled={currentStep >= STEPS.length - 1}
+            className="flex-1"
+          >
+            {currentStep === STEPS.length - 1 ? "완료" : "다음 단계"}
+          </Button>
+        </div>
       </main>
     </div>
   );
