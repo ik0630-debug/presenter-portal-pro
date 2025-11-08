@@ -1,19 +1,31 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, FileText, CheckSquare, Info, LogOut } from "lucide-react";
+import { Upload, FileText, CheckSquare, Info, LogOut, DollarSign, MapPin } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import PresentationUpload from "@/components/dashboard/PresentationUpload";
 import PresentationInfo from "@/components/dashboard/PresentationInfo";
 import ConsentChecklist from "@/components/dashboard/ConsentChecklist";
 import OrganizerInfo from "@/components/dashboard/OrganizerInfo";
+import HonorariumInfo from "@/components/dashboard/HonorariumInfo";
+import ArrivalGuide from "@/components/dashboard/ArrivalGuide";
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("upload");
+  const [activeTab, setActiveTab] = useState("project");
+  const [speakerName, setSpeakerName] = useState("발표자");
+
+  useEffect(() => {
+    const sessionStr = localStorage.getItem('speakerSession');
+    if (sessionStr) {
+      const session = JSON.parse(sessionStr);
+      setSpeakerName(session.name || "발표자");
+    }
+  }, []);
 
   const handleLogout = () => {
+    localStorage.removeItem('speakerSession');
     navigate("/auth");
   };
 
@@ -25,7 +37,7 @@ const Dashboard = () => {
             <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
               발표자 대시보드
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">홍길동 님 환영합니다</p>
+            <p className="text-sm text-muted-foreground mt-1">{speakerName} 님 환영합니다</p>
           </div>
           <Button variant="outline" onClick={handleLogout} className="gap-2">
             <LogOut className="h-4 w-4" />
@@ -44,7 +56,11 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-              <TabsList className="grid w-full grid-cols-4 gap-2">
+              <TabsList className="grid w-full grid-cols-6 gap-2">
+                <TabsTrigger value="project" className="gap-2">
+                  <Info className="h-4 w-4" />
+                  <span className="hidden sm:inline">프로젝트</span>
+                </TabsTrigger>
                 <TabsTrigger value="upload" className="gap-2">
                   <Upload className="h-4 w-4" />
                   <span className="hidden sm:inline">자료 업로드</span>
@@ -57,11 +73,19 @@ const Dashboard = () => {
                   <CheckSquare className="h-4 w-4" />
                   <span className="hidden sm:inline">동의서</span>
                 </TabsTrigger>
-                <TabsTrigger value="organizer" className="gap-2">
-                  <Info className="h-4 w-4" />
-                  <span className="hidden sm:inline">주최측 정보</span>
+                <TabsTrigger value="honorarium" className="gap-2">
+                  <DollarSign className="h-4 w-4" />
+                  <span className="hidden sm:inline">강연료</span>
+                </TabsTrigger>
+                <TabsTrigger value="arrival" className="gap-2">
+                  <MapPin className="h-4 w-4" />
+                  <span className="hidden sm:inline">도착 안내</span>
                 </TabsTrigger>
               </TabsList>
+
+              <TabsContent value="project" className="space-y-4">
+                <OrganizerInfo />
+              </TabsContent>
 
               <TabsContent value="upload" className="space-y-4">
                 <PresentationUpload />
@@ -75,8 +99,12 @@ const Dashboard = () => {
                 <ConsentChecklist />
               </TabsContent>
 
-              <TabsContent value="organizer" className="space-y-4">
-                <OrganizerInfo />
+              <TabsContent value="honorarium" className="space-y-4">
+                <HonorariumInfo />
+              </TabsContent>
+
+              <TabsContent value="arrival" className="space-y-4">
+                <ArrivalGuide />
               </TabsContent>
             </Tabs>
           </CardContent>
