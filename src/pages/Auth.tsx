@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -16,16 +17,49 @@ const Auth = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    // TODO: 외부 DB와 연동하여 발표자 인증
-    setTimeout(() => {
-      if (email && speakerId) {
+    try {
+      // Verify speaker with external DB
+      const { data, error } = await supabase.functions.invoke('verify-speaker', {
+        body: { email, speakerId }
+      });
+
+      if (error) throw error;
+
+      if (data.error) {
+        toast.error(data.error);
+        setIsLoading(false);
+        return;
+      }
+
+      if (data.success && data.speaker) {
+        // Create or update speaker session in local DB
+        const { error: sessionError } = await supabase
+          .from('speaker_sessions')
+          .upsert({
+            email: data.speaker.email,
+            speaker_id: data.speaker.speakerId,
+            external_supplier_id: data.speaker.id,
+            speaker_name: data.speaker.name,
+            event_name: data.speaker.eventName,
+            presentation_date: data.speaker.presentationDate,
+          });
+
+        if (sessionError) {
+          console.error('Session creation error:', sessionError);
+        }
+
+        // Store session in localStorage
+        localStorage.setItem('speakerSession', JSON.stringify(data.speaker));
+        
         toast.success("로그인 성공!");
         navigate("/dashboard");
-      } else {
-        toast.error("이메일과 발표자 ID를 모두 입력해주세요.");
       }
+    } catch (error) {
+      console.error('Login error:', error);
+      toast.error("로그인 중 오류가 발생했습니다.");
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (

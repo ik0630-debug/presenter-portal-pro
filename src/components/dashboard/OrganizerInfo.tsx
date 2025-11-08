@@ -1,23 +1,61 @@
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CalendarClock, DollarSign, MapPin, Phone, Mail, Users } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+interface OrganizerData {
+  eventName: string;
+  date: string;
+  time: string;
+  venue: string;
+  arrivalTime: string;
+  honorarium: string;
+  contact: {
+    name: string;
+    phone: string;
+    email: string;
+  };
+  attendees: string;
+}
 
 const OrganizerInfo = () => {
-  // TODO: 실제 데이터는 서버에서 가져와야 함
-  const organizerData = {
-    eventName: "2024 국제 AI 컨퍼런스",
-    date: "2024년 12월 15일",
-    time: "14:00 - 14:45",
-    venue: "서울 코엑스 그랜드볼룸",
-    arrivalTime: "13:30까지 도착 요청",
-    honorarium: "500,000원",
-    contact: {
-      name: "홍보팀 김담당",
-      phone: "02-1234-5678",
-      email: "contact@conference.com",
-    },
-    attendees: "약 500명",
-  };
+  const [organizerData, setOrganizerData] = useState<OrganizerData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchOrganizerInfo = async () => {
+      try {
+        const sessionStr = localStorage.getItem('speakerSession');
+        if (!sessionStr) {
+          toast.error('세션 정보를 찾을 수 없습니다.');
+          return;
+        }
+
+        const session = JSON.parse(sessionStr);
+
+        const { data, error } = await supabase.functions.invoke('get-organizer-info', {
+          body: { speakerId: session.id }
+        });
+
+        if (error) throw error;
+
+        if (data.error) {
+          toast.error(data.error);
+        } else {
+          setOrganizerData(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch organizer info:', error);
+        toast.error('주최측 정보를 불러오는데 실패했습니다.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrganizerInfo();
+  }, []);
 
   const InfoCard = ({ icon: Icon, title, content, badge }: any) => (
     <div className="flex items-start gap-3 p-4 border rounded-lg hover:bg-accent/5 transition-colors">
@@ -35,6 +73,30 @@ const OrganizerInfo = () => {
       </div>
     </div>
   );
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Card>
+          <CardContent className="p-6 text-center">
+            <p className="text-muted-foreground">정보를 불러오는 중...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!organizerData) {
+    return (
+      <div className="space-y-4">
+        <Card>
+          <CardContent className="p-6 text-center">
+            <p className="text-muted-foreground">주최측 정보를 찾을 수 없습니다.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -57,7 +119,7 @@ const OrganizerInfo = () => {
           <InfoCard
             icon={CalendarClock}
             title="발표 일시"
-            content={`${organizerData.date} ${organizerData.time}`}
+            content={`${organizerData.date ? new Date(organizerData.date).toLocaleDateString('ko-KR') : '미정'} ${organizerData.time}`}
             badge={organizerData.arrivalTime}
           />
           <InfoCard

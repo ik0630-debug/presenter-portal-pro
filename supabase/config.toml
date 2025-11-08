@@ -1,1 +1,7 @@
 project_id = "sohpysufjqydafpenile"
+
+[functions.verify-speaker]
+verify_jwt = false
+
+[functions.get-organizer-info]
+verify_jwt = false

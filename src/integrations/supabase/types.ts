@@ -14,7 +14,171 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      consent_records: {
+        Row: {
+          consent_date: string | null
+          copyright_consent: boolean | null
+          created_at: string | null
+          distribution_consent: boolean | null
+          id: string
+          portrait_consent: boolean | null
+          recording_consent: boolean | null
+          session_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          consent_date?: string | null
+          copyright_consent?: boolean | null
+          created_at?: string | null
+          distribution_consent?: boolean | null
+          id?: string
+          portrait_consent?: boolean | null
+          recording_consent?: boolean | null
+          session_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          consent_date?: string | null
+          copyright_consent?: boolean | null
+          created_at?: string | null
+          distribution_consent?: boolean | null
+          id?: string
+          portrait_consent?: boolean | null
+          recording_consent?: boolean | null
+          session_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consent_records_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: true
+            referencedRelation: "speaker_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      presentation_files: {
+        Row: {
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type: string
+          id: string
+          session_id: string
+          updated_at: string | null
+          upload_deadline: string | null
+          uploaded_at: string | null
+        }
+        Insert: {
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type: string
+          id?: string
+          session_id: string
+          updated_at?: string | null
+          upload_deadline?: string | null
+          uploaded_at?: string | null
+        }
+        Update: {
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          file_type?: string
+          id?: string
+          session_id?: string
+          updated_at?: string | null
+          upload_deadline?: string | null
+          uploaded_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "presentation_files_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "speaker_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      presentation_info: {
+        Row: {
+          created_at: string | null
+          id: string
+          session_id: string
+          special_requests: string | null
+          updated_at: string | null
+          use_audio: boolean | null
+          use_personal_laptop: boolean | null
+          use_video: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          session_id: string
+          special_requests?: string | null
+          updated_at?: string | null
+          use_audio?: boolean | null
+          use_personal_laptop?: boolean | null
+          use_video?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          session_id?: string
+          special_requests?: string | null
+          updated_at?: string | null
+          use_audio?: boolean | null
+          use_personal_laptop?: boolean | null
+          use_video?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "presentation_info_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: true
+            referencedRelation: "speaker_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      speaker_sessions: {
+        Row: {
+          created_at: string | null
+          email: string
+          event_name: string | null
+          external_supplier_id: string | null
+          id: string
+          presentation_date: string | null
+          speaker_id: string
+          speaker_name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          event_name?: string | null
+          external_supplier_id?: string | null
+          id?: string
+          presentation_date?: string | null
+          speaker_id: string
+          speaker_name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          event_name?: string | null
+          external_supplier_id?: string | null
+          id?: string
+          presentation_date?: string | null
+          speaker_id?: string
+          speaker_name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
