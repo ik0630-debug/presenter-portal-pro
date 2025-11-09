@@ -155,7 +155,7 @@ const AdminProjects = () => {
       
       setFormData({
         project_name: selectedProject.project_name,
-        event_name: selectedProject.event_name,
+        event_name: selectedProject.event_name || '', // 외부에는 행사명이 없을 수 있음
         description: selectedProject.description || "",
         start_date: selectedProject.start_date?.split('T')[0] || "",
         end_date: selectedProject.end_date?.split('T')[0] || "",
@@ -209,7 +209,7 @@ const AdminProjects = () => {
           // 외부 프로젝트 가져오기
           const { error } = await supabase.from('projects').insert({
             project_name: formData.project_name,
-            event_name: formData.event_name,
+            event_name: formData.event_name || null, // 행사명은 선택사항
             description: formData.description || null,
             start_date: formData.start_date || null,
             end_date: formData.end_date || null,
@@ -367,16 +367,16 @@ const AdminProjects = () => {
                     </div>
 
                     {selectedExternalProjectId && (
-                      <div className="rounded-lg border p-4 space-y-2 bg-muted/50">
-                        <h4 className="font-semibold">선택된 프로젝트 정보</h4>
-                        <div className="space-y-1 text-sm">
-                          <p><span className="text-muted-foreground">프로젝트명:</span> {formData.project_name}</p>
-                          <p><span className="text-muted-foreground">행사명:</span> {formData.event_name}</p>
-                          {formData.description && <p><span className="text-muted-foreground">설명:</span> {formData.description}</p>}
-                          {formData.start_date && <p><span className="text-muted-foreground">시작일:</span> {new Date(formData.start_date).toLocaleDateString('ko-KR')}</p>}
-                          {formData.end_date && <p><span className="text-muted-foreground">종료일:</span> {new Date(formData.end_date).toLocaleDateString('ko-KR')}</p>}
+                        <div className="rounded-lg border p-4 space-y-2 bg-muted/50">
+                          <h4 className="font-semibold">선택된 프로젝트 정보</h4>
+                          <div className="space-y-1 text-sm">
+                            <p><span className="text-muted-foreground">프로젝트명:</span> {formData.project_name}</p>
+                            {formData.event_name && <p><span className="text-muted-foreground">행사명:</span> {formData.event_name}</p>}
+                            {formData.description && <p><span className="text-muted-foreground">설명:</span> {formData.description}</p>}
+                            {formData.start_date && <p><span className="text-muted-foreground">시작일:</span> {new Date(formData.start_date).toLocaleDateString('ko-KR')}</p>}
+                            {formData.end_date && <p><span className="text-muted-foreground">종료일:</span> {new Date(formData.end_date).toLocaleDateString('ko-KR')}</p>}
+                          </div>
                         </div>
-                      </div>
                     )}
 
                     <div className="flex justify-end gap-2">
@@ -405,12 +405,12 @@ const AdminProjects = () => {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="event_name">행사명 *</Label>
+                          <Label htmlFor="event_name">행사명 (선택사항)</Label>
                           <Input
                             id="event_name"
                             value={formData.event_name}
                             onChange={(e) => setFormData({...formData, event_name: e.target.value})}
-                            required
+                            placeholder="외부 프로젝트는 행사명이 없을 수 있습니다"
                           />
                         </div>
                       </div>
@@ -566,8 +566,12 @@ const AdminProjects = () => {
                       {/* 프로젝트 제목 */}
                       <div className="flex items-center gap-2 min-w-[300px]">
                         <h3 className="font-semibold text-sm">{project.project_name}</h3>
-                        <span className="text-xs text-muted-foreground">-</span>
-                        <span className="text-sm text-muted-foreground">{project.event_name}</span>
+                        {project.event_name && (
+                          <>
+                            <span className="text-xs text-muted-foreground">-</span>
+                            <span className="text-sm text-muted-foreground">{project.event_name}</span>
+                          </>
+                        )}
                         {project.external_project_id && (
                           <Badge variant="secondary" className="text-xs">외부</Badge>
                         )}
