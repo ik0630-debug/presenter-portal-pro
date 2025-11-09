@@ -406,6 +406,24 @@ const PresentationUpload = () => {
             <div className="space-y-4">
               <div className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-accent/5 transition-colors">
                 <Checkbox
+                  id="hasVideo"
+                  checked={presentationInfo.hasVideo}
+                  onCheckedChange={(checked) =>
+                    setPresentationInfo({ ...presentationInfo, hasVideo: checked as boolean })
+                  }
+                />
+                <Label htmlFor="hasVideo" className="cursor-pointer flex-1">
+                  <div>
+                    <p className="font-medium">동영상 상영</p>
+                    <p className="text-sm text-muted-foreground">
+                      발표에 동영상이 포함되어 있습니다
+                    </p>
+                  </div>
+                </Label>
+              </div>
+
+              <div className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-accent/5 transition-colors">
+                <Checkbox
                   id="needsAudio"
                   checked={presentationInfo.needsAudio}
                   onCheckedChange={(checked) =>
@@ -435,24 +453,6 @@ const PresentationUpload = () => {
                     <p className="font-medium">개인 노트북 사용</p>
                     <p className="text-sm text-muted-foreground">
                       본인의 노트북으로 발표합니다
-                    </p>
-                  </div>
-                </Label>
-              </div>
-
-              <div className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-accent/5 transition-colors">
-                <Checkbox
-                  id="hasVideo"
-                  checked={presentationInfo.hasVideo}
-                  onCheckedChange={(checked) =>
-                    setPresentationInfo({ ...presentationInfo, hasVideo: checked as boolean })
-                  }
-                />
-                <Label htmlFor="hasVideo" className="cursor-pointer flex-1">
-                  <div>
-                    <p className="font-medium">동영상 상영</p>
-                    <p className="text-sm text-muted-foreground">
-                      발표에 동영상이 포함되어 있습니다
                     </p>
                   </div>
                 </Label>
