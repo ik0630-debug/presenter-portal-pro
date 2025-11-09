@@ -246,6 +246,29 @@ const ArrivalGuide = () => {
     );
   }
 
+  const hasAnyData = arrivalData.eventName || arrivalData.venue || arrivalData.time || 
+                      arrivalData.checkInTime || arrivalData.parking || 
+                      arrivalData.contact.name || arrivalData.emergency || 
+                      arrivalData.notes || checklistItems.length > 0;
+
+  if (!hasAnyData) {
+    return (
+      <Card>
+        <CardContent className="py-12">
+          <div className="text-center space-y-3">
+            <MapPinned className="h-12 w-12 mx-auto text-muted-foreground/50" />
+            <div>
+              <p className="text-muted-foreground font-medium">현장 안내 정보가 아직 준비되지 않았습니다.</p>
+              <p className="text-sm text-muted-foreground/70 mt-1">
+                행사 담당자가 정보를 등록하면 여기에 표시됩니다.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <style>
