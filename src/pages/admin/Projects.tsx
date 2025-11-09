@@ -548,125 +548,137 @@ const AdminProjects = () => {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4">
+            <div className="space-y-3">
               {projects.map((project) => (
-              <Card key={project.id} className="shadow-elevated">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <CardTitle className="text-xl">{project.project_name}</CardTitle>
-                        {project.external_project_id && (
-                          <Badge variant="secondary">외부 연동</Badge>
-                        )}
+                <Card key={project.id} className="shadow-sm hover:shadow-md transition-shadow">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-4">
+                      {/* 날짜 범위 */}
+                      <div className="flex items-center gap-2 min-w-[200px]">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm">
+                          {project.start_date ? new Date(project.start_date).toLocaleDateString('ko-KR').replace(/\. /g, '. ') : '날짜 미정'}
+                          {project.start_date && project.end_date && ' ~ '}
+                          {project.end_date && new Date(project.end_date).toLocaleDateString('ko-KR').replace(/\. /g, '. ')}
+                        </span>
                       </div>
-                      <CardDescription className="mt-2">
-                        {project.event_name}
-                      </CardDescription>
-                      {project.slug && (
-                        <div className="flex items-center gap-2 mt-2">
-                          <code className="text-xs bg-muted px-2 py-1 rounded">
-                            {window.location.origin}/{project.slug}/{'발표자이메일'}
-                          </code>
+
+                      {/* 설정 버튼들 */}
+                      <div className="flex items-center gap-2 flex-1 flex-wrap">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate(`/admin/projects/${project.id}/transportation`)}
+                          className="gap-1.5 text-xs h-8"
+                        >
+                          <Settings className="h-3.5 w-3.5" />
+                          교통비 설정
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate(`/admin/projects/${project.id}/receipt-settings`)}
+                          className="gap-1.5 text-xs h-8"
+                        >
+                          <Clock className="h-3.5 w-3.5" />
+                          마감일 설정
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate(`/admin/projects/${project.id}/presentation-fields`)}
+                          className="gap-1.5 text-xs h-8"
+                        >
+                          <ListChecks className="h-3.5 w-3.5" />
+                          발표 정보 필드
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate(`/admin/projects/${project.id}/consent-fields`)}
+                          className="gap-1.5 text-xs h-8"
+                        >
+                          <FileCheck className="h-3.5 w-3.5" />
+                          동의서 설정
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate(`/admin/projects/${project.id}/arrival-guide`)}
+                          className="gap-1.5 text-xs h-8"
+                        >
+                          <MapPinned className="h-3.5 w-3.5" />
+                          현장안내 설정
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate(`/admin/projects/${project.id}/presentations`)}
+                          className="gap-1.5 text-xs h-8"
+                        >
+                          <FileText className="h-3.5 w-3.5" />
+                          발표자료
+                        </Button>
+                      </div>
+
+                      {/* 수정/삭제 버튼 */}
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openEditDialog(project)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setDeleteProject(project)}
+                          className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* 프로젝트 정보 및 링크 (접기 가능) */}
+                    <div className="mt-3 pt-3 border-t space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold text-sm">{project.project_name}</h3>
+                          <span className="text-xs text-muted-foreground">-</span>
+                          <span className="text-sm text-muted-foreground">{project.event_name}</span>
+                          {project.external_project_id && (
+                            <Badge variant="secondary" className="text-xs">외부 연동</Badge>
+                          )}
+                        </div>
+                        {project.slug && (
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => {
                               navigator.clipboard.writeText(`${window.location.origin}/${project.slug}/`);
-                              toast.success("링크가 복사되었습니다");
+                              toast.success("발표자 링크가 복사되었습니다");
                             }}
+                            className="gap-1.5 text-xs h-7"
                           >
-                            복사
+                            <Download className="h-3.5 w-3.5" />
+                            링크 복사
                           </Button>
-                        </div>
+                        )}
+                      </div>
+                      {project.slug && (
+                        <code className="text-xs bg-muted px-2 py-1 rounded block">
+                          {window.location.origin}/{project.slug}/{'발표자이메일'}
+                        </code>
                       )}
                       {project.description && (
-                        <p className="text-sm text-muted-foreground mt-2">{project.description}</p>
-                      )}
-                      {(project.start_date || project.end_date) && (
-                        <div className="flex items-center gap-2 mt-3 text-sm text-muted-foreground">
-                          <Calendar className="h-4 w-4" />
-                          <span>
-                            {project.start_date && new Date(project.start_date).toLocaleDateString('ko-KR')}
-                            {project.start_date && project.end_date && ' ~ '}
-                            {project.end_date && new Date(project.end_date).toLocaleDateString('ko-KR')}
-                          </span>
-                        </div>
+                        <p className="text-xs text-muted-foreground">{project.description}</p>
                       )}
                     </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => navigate(`/admin/projects/${project.id}/transportation`)}
-                        className="gap-2"
-                      >
-                        <Settings className="h-4 w-4" />
-                        교통비 설정
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => navigate(`/admin/projects/${project.id}/receipt-settings`)}
-                        className="gap-2"
-                      >
-                        <Clock className="h-4 w-4" />
-                        마감일 설정
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => navigate(`/admin/projects/${project.id}/presentation-fields`)}
-                        className="gap-2"
-                      >
-                        <ListChecks className="h-4 w-4" />
-                        발표 정보 필드
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => navigate(`/admin/projects/${project.id}/consent-fields`)}
-                        className="gap-2"
-                      >
-                        <FileCheck className="h-4 w-4" />
-                        동의서 설정
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => navigate(`/admin/projects/${project.id}/arrival-guide`)}
-                        className="gap-2"
-                      >
-                        <MapPinned className="h-4 w-4" />
-                        현장안내 설정
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => navigate(`/admin/projects/${project.id}/presentations`)}
-                        className="gap-2"
-                      >
-                        <FileText className="h-4 w-4" />
-                        발표자료
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => openEditDialog(project)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => setDeleteProject(project)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-              </Card>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           )}
