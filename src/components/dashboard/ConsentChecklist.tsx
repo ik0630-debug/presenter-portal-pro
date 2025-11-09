@@ -16,6 +16,7 @@ interface ConsentItem {
 
 const ConsentChecklist = () => {
   const [consents, setConsents] = useState<Record<string, boolean | null>>({
+    privacy: null,
     copyright: null,
     portraitRights: null,
     recording: null,
@@ -27,6 +28,18 @@ const ConsentChecklist = () => {
 
 
   const consentItems: ConsentItem[] = [
+    {
+      id: "privacy",
+      title: "개인정보 수집·이용 동의",
+      required: true,
+      content: `정보 수집자: (주)엠앤씨커뮤니케이션즈
+
+수집하는 정보: 본 시스템을 통해 취득하는 모든 정보 (성명, 소속, 연락처, 발표자료, 서명 등)
+
+수집 및 이용 기간: 수집일로부터 3년
+
+※ 본 동의를 거부하실 수 있으나, 동의하지 않을 경우 행사 참가가 불가합니다.`,
+    },
     {
       id: "copyright",
       title: "저작권 사용 동의",
