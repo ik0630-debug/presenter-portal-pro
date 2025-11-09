@@ -466,7 +466,7 @@ const PresentationUpload = () => {
               <Label htmlFor="specialRequirements">특별 요청사항</Label>
               <Textarea
                 id="specialRequirements"
-                placeholder="추가로 필요한 장비나 요청사항을 입력해주세요&#10;클리커(포인터) 외 키보드 마우스 컨트롤 등 시연이 필요한 경우 반드시 요청사항에 입력 바랍니다."
+                placeholder={"추가로 필요한 장비나 요청사항을 입력해주세요\n\n클리커(포인터) 외 키보드 마우스 컨트롤 등 시연이 필요한 경우 반드시 요청사항에 입력 바랍니다."}
                 value={presentationInfo.specialRequirements}
                 onChange={(e) =>
                   setPresentationInfo({ ...presentationInfo, specialRequirements: e.target.value })
