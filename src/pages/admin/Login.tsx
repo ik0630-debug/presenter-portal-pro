@@ -19,29 +19,56 @@ const AdminLogin = () => {
     setIsLoading(true);
 
     try {
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      // First, try to verify admin from external DB
+      const { data: verifyData, error: verifyError } = await supabase.functions.invoke('verify-admin', {
+        body: { email, password },
       });
 
-      if (authError) throw authError;
+      if (verifyError || !verifyData?.success) {
+        // If external verification fails, try local login
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
 
-      // Check if user is admin
-      const { data: adminData, error: adminError } = await supabase
-        .from('admin_users')
-        .select('*')
-        .eq('user_id', authData.user.id)
-        .single();
+        if (authError) throw authError;
 
-      if (adminError || !adminData) {
-        await supabase.auth.signOut();
-        toast.error("관리자 권한이 없습니다.");
-        setIsLoading(false);
-        return;
+        // Check if user is admin
+        const { data: adminData, error: adminError } = await supabase
+          .from('admin_users')
+          .select('*')
+          .eq('user_id', authData.user.id)
+          .single();
+
+        if (adminError || !adminData) {
+          await supabase.auth.signOut();
+          toast.error("관리자 권한이 없습니다.");
+          setIsLoading(false);
+          return;
+        }
+
+        toast.success("로그인 성공!");
+        navigate("/admin/dashboard");
+      } else {
+        // External admin verified, now sign in locally
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password: verifyData.session.hashed_token || password,
+        });
+
+        if (signInError) {
+          // If local sign in fails, it means user was just created, use magic link
+          const { error: setSessionError } = await supabase.auth.setSession({
+            access_token: verifyData.session.properties.access_token,
+            refresh_token: verifyData.session.properties.refresh_token,
+          });
+
+          if (setSessionError) throw setSessionError;
+        }
+
+        toast.success(`${verifyData.user.role === 'super_admin' ? 'Master' : 'Admin'} 로그인 성공!`);
+        navigate("/admin/dashboard");
       }
-
-      toast.success("로그인 성공!");
-      navigate("/admin/dashboard");
     } catch (error: any) {
       console.error('Login error:', error);
       toast.error(error.message || "로그인 중 오류가 발생했습니다.");
