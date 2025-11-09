@@ -237,23 +237,16 @@ const PresentationInfoSettings = () => {
                         <Label className="text-sm">활성화</Label>
                       </div>
                       
-                      {!field.id.startsWith('use_') && !field.isDefault && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveField(index)}
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          삭제
-                        </Button>
-                      )}
-                      {(field.id.startsWith('use_') || field.isDefault) && (
-                        <span className="text-xs text-muted-foreground">
-                          기본 항목 (삭제 불가)
-                        </span>
-                      )}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveField(index)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        삭제
+                      </Button>
                     </div>
                   </div>
                 </div>

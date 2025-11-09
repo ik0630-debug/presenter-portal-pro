@@ -85,15 +85,33 @@ const PresentationUpload = () => {
         .eq('setting_key', 'presentation_info_fields')
         .maybeSingle();
 
+      // 기본 필드 정의
+      const defaultFields = [
+        { id: 'use_video', label: '동영상 사용', description: '발표에 동영상이 포함되어 있습니다', order: 1, enabled: true },
+        { id: 'use_audio', label: '소리 사용', description: '발표에 오디오가 포함되어 있습니다', order: 2, enabled: true },
+        { id: 'use_personal_laptop', label: '개인 노트북 사용', description: '개인 노트북을 사용하여 발표합니다', order: 3, enabled: true },
+      ];
+
       if (fieldsSettings?.setting_value) {
-        const fields = (fieldsSettings.setting_value as any[])
-          .filter(f => f.enabled)
-          .sort((a, b) => a.order - b.order);
-        setPresentationFields(fields);
+        // 설정된 커스텀 필드 중 enabled=true인 것만 가져오기
+        const customFields = (fieldsSettings.setting_value as any[])
+          .filter(f => f.enabled && !['use_video', 'use_audio', 'use_personal_laptop'].includes(f.id));
+        
+        // 기본 필드 + 커스텀 필드를 합치고 순서대로 정렬
+        const allFields = [...defaultFields, ...customFields].sort((a, b) => a.order - b.order);
+        setPresentationFields(allFields);
         
         // 초기 상태 설정
         const initialState: Record<string, boolean> = {};
-        fields.forEach(field => {
+        allFields.forEach(field => {
+          initialState[field.id] = false;
+        });
+        setPresentationInfo(initialState);
+      } else {
+        // 설정이 없으면 기본 필드만 표시
+        setPresentationFields(defaultFields);
+        const initialState: Record<string, boolean> = {};
+        defaultFields.forEach(field => {
           initialState[field.id] = false;
         });
         setPresentationInfo(initialState);
@@ -643,9 +661,6 @@ const PresentationUpload = () => {
                 rows={4}
                 className="resize-none"
               />
-              <p className="text-xs text-muted-foreground">
-                예: 레이저 포인터, 화이트보드, 추가 마이크 등
-              </p>
             </div>
 
             <Button type="submit" className="w-full" disabled={isLoading}>
