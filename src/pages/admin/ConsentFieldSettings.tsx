@@ -95,28 +95,29 @@ const ConsentFieldSettings = () => {
   const [fields, setFields] = useState<ConsentField[]>([]);
 
   useEffect(() => {
-    checkAuth();
+    // 로그인 기능 비활성화 - 추후 재활성화 예정
+    // checkAuth();
     loadData();
   }, [projectId]);
 
-  const checkAuth = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      navigate("/admin/login");
-      return;
-    }
+  // const checkAuth = async () => {
+  //   const { data: { user } } = await supabase.auth.getUser();
+  //   if (!user) {
+  //     navigate("/admin/login");
+  //     return;
+  //   }
 
-    const { data: adminUser } = await supabase
-      .from("admin_users")
-      .select("*")
-      .eq("user_id", user.id)
-      .maybeSingle();
+  //   const { data: adminUser } = await supabase
+  //     .from("admin_users")
+  //     .select("*")
+  //     .eq("user_id", user.id)
+  //     .maybeSingle();
 
-    if (!adminUser) {
-      toast.error("관리자 권한이 없습니다.");
-      navigate("/");
-    }
-  };
+  //   if (!adminUser) {
+  //     toast.error("관리자 권한이 없습니다.");
+  //     navigate("/");
+  //   }
+  // };
 
   const loadData = async () => {
     if (!projectId) return;

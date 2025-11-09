@@ -16,38 +16,40 @@ const AdminDashboard = () => {
   const [isDebugging, setIsDebugging] = useState(false);
 
   useEffect(() => {
-    checkAuth();
+    // 로그인 기능 비활성화 - 추후 재활성화 예정
+    // checkAuth();
+    setIsLoading(false);
   }, []);
 
-  const checkAuth = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        navigate("/admin/login");
-        return;
-      }
+  // const checkAuth = async () => {
+  //   try {
+  //     const { data: { user } } = await supabase.auth.getUser();
+  //     
+  //     if (!user) {
+  //       navigate("/admin/login");
+  //       return;
+  //     }
 
-      const { data: adminData, error } = await supabase
-        .from('admin_users')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
+  //     const { data: adminData, error } = await supabase
+  //       .from('admin_users')
+  //       .select('*')
+  //       .eq('user_id', user.id)
+  //       .single();
 
-      if (error || !adminData) {
-        await supabase.auth.signOut();
-        navigate("/admin/login");
-        return;
-      }
+  //     if (error || !adminData) {
+  //       await supabase.auth.signOut();
+  //       navigate("/admin/login");
+  //       return;
+  //     }
 
-      setAdminEmail(adminData.email);
-    } catch (error) {
-      console.error('Auth check error:', error);
-      navigate("/admin/login");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  //     setAdminEmail(adminData.email);
+  //   } catch (error) {
+  //     console.error('Auth check error:', error);
+  //     navigate("/admin/login");
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
