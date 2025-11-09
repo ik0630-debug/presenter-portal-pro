@@ -34,59 +34,25 @@ const Index = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    
+    // 개발/테스트 모드: 아무 입력 없이도 바로 대시보드로 이동
+    const sessionData = {
+      id: "test-id",
+      email: email || "test@example.com",
+      name: "테스트 발표자",
+      speakerId: speakerId || "TEST-001",
+      eventName: "테스트 행사",
+      presentationDate: new Date().toISOString(),
+      project_id: "test-project",
+      organization: "테스트 기관",
+      position: "테스트 직책",
+      department: "테스트 부서",
+    };
 
-    try {
-      if (!email || !speakerId) {
-        toast.error("이메일과 발표자 ID를 모두 입력해주세요.");
-        setIsLoading(false);
-        return;
-      }
-
-      // Query speaker_sessions from database
-      const { data: sessions, error } = await supabase
-        .from('speaker_sessions')
-        .select('*')
-        .eq('email', email)
-        .eq('speaker_id', speakerId);
-
-      if (error) {
-        console.error('Query error:', error);
-        toast.error("로그인 중 오류가 발생했습니다.");
-        setIsLoading(false);
-        return;
-      }
-
-      if (!sessions || sessions.length === 0) {
-        toast.error("일치하는 발표자 정보를 찾을 수 없습니다.");
-        setIsLoading(false);
-        return;
-      }
-
-      const session = sessions[0];
-      const sessionData = {
-        id: session.id,
-        email: session.email,
-        name: session.speaker_name,
-        speakerId: session.speaker_id,
-        eventName: session.event_name || "행사",
-        presentationDate: session.presentation_date,
-        project_id: session.project_id,
-        organization: session.organization,
-        position: session.position,
-        department: session.department,
-      };
-
-      localStorage.setItem('speakerSession', JSON.stringify(sessionData));
-      
-      toast.success("로그인 성공!");
-      navigate("/dashboard");
-    } catch (error) {
-      console.error('Login error:', error);
-      toast.error("로그인 중 오류가 발생했습니다.");
-    } finally {
-      setIsLoading(false);
-    }
+    localStorage.setItem('speakerSession', JSON.stringify(sessionData));
+    
+    toast.success("로그인 성공!");
+    navigate("/dashboard");
   };
 
   return (
@@ -145,7 +111,6 @@ const Index = () => {
                       placeholder="speaker@example.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      required
                       className="h-11"
                     />
                   </div>
@@ -157,7 +122,6 @@ const Index = () => {
                       placeholder="SPK-2024-001"
                       value={speakerId}
                       onChange={(e) => setSpeakerId(e.target.value)}
-                      required
                       className="h-11"
                     />
                   </div>
