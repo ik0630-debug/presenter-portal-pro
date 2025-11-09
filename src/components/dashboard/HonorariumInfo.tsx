@@ -12,9 +12,6 @@ import SignatureCanvas from "react-signature-canvas";
 const HonorariumInfo = () => {
   const [recipientType, setRecipientType] = useState<string>("본인");
   const [incomeType, setIncomeType] = useState<string>("기타소득");
-  const [bankName, setBankName] = useState("");
-  const [accountNumber, setAccountNumber] = useState("");
-  const [accountHolder, setAccountHolder] = useState("");
   const [idFile, setIdFile] = useState<File | null>(null);
   const [bankbookFile, setBankbookFile] = useState<File | null>(null);
   const [agentConsent, setAgentConsent] = useState(false);
@@ -73,11 +70,6 @@ const HonorariumInfo = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!bankName || !accountNumber || !accountHolder) {
-      toast.error("모든 필수 정보를 입력해주세요.");
-      return;
-    }
 
     if (!idFile || !bankbookFile) {
       toast.error("신분증과 통장사본을 모두 업로드해주세요.");
@@ -136,37 +128,6 @@ const HonorariumInfo = () => {
               </RadioGroup>
             </div>
 
-            {/* 소득 구분 선택 - 본인 또는 대리인일 경우만 표시 */}
-            {(recipientType === "본인" || recipientType === "대리인") && (
-              <div className="space-y-3">
-                <Label className="text-base font-semibold">소득 구분 *</Label>
-                <RadioGroup value={incomeType} onValueChange={setIncomeType}>
-                  <div className="space-y-1">
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="기타소득" id="income-other" />
-                      <Label htmlFor="income-other" className="font-normal cursor-pointer">
-                        기타소득(8.8% 공제 후 입금)
-                      </Label>
-                    </div>
-                    <p className="text-sm text-muted-foreground ml-6">
-                      일시적이고 비정기적 소득인 경우(대부분의 경우에 해당)
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="사업소득" id="income-business" />
-                      <Label htmlFor="income-business" className="font-normal cursor-pointer">
-                        사업소득(3.3% 공제 후 입금)
-                      </Label>
-                    </div>
-                    <p className="text-sm text-muted-foreground ml-6">
-                      정기적 소득(프리랜서 등에 해당)
-                    </p>
-                  </div>
-                </RadioGroup>
-              </div>
-            )}
-
             {/* 대리인 동의 및 서명 - 대리인일 경우만 표시 */}
             {recipientType === "대리인" && (
               <div className="space-y-4">
@@ -201,7 +162,9 @@ const HonorariumInfo = () => {
                     <RadioGroup value={signatureMethod} onValueChange={(value) => setSignatureMethod(value as "upload" | "draw")}>
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="draw" id="signature-draw" />
-                        <Label htmlFor="signature-draw" className="font-normal cursor-pointer">직접 서명하기</Label>
+                        <Label htmlFor="signature-draw" className="font-normal cursor-pointer">
+                          직접 서명(아래 서명 영역에 마우스를 클릭한 채로 서명을 입력합니다.)
+                        </Label>
                       </div>
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="upload" id="signature-upload" />
@@ -281,38 +244,36 @@ const HonorariumInfo = () => {
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="bankName">은행명 *</Label>
-              <Input
-                id="bankName"
-                placeholder="예) 국민은행"
-                value={bankName}
-                onChange={(e) => setBankName(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="accountNumber">계좌번호 *</Label>
-              <Input
-                id="accountNumber"
-                placeholder="예) 123-456-789012"
-                value={accountNumber}
-                onChange={(e) => setAccountNumber(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="accountHolder">예금주 *</Label>
-              <Input
-                id="accountHolder"
-                placeholder="예) 홍길동"
-                value={accountHolder}
-                onChange={(e) => setAccountHolder(e.target.value)}
-                required
-              />
-            </div>
+            {/* 소득 구분 선택 - 본인 또는 대리인일 경우만 표시 */}
+            {(recipientType === "본인" || recipientType === "대리인") && (
+              <div className="space-y-3">
+                <Label className="text-base font-semibold">소득 구분 *</Label>
+                <RadioGroup value={incomeType} onValueChange={setIncomeType}>
+                  <div className="space-y-1">
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="기타소득" id="income-other" />
+                      <Label htmlFor="income-other" className="font-normal cursor-pointer">
+                        기타소득(8.8% 공제 후 입금)
+                      </Label>
+                    </div>
+                    <p className="text-sm text-muted-foreground ml-6">
+                      일시적이고 비정기적 소득인 경우(대부분의 경우에 해당)
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="사업소득" id="income-business" />
+                      <Label htmlFor="income-business" className="font-normal cursor-pointer">
+                        사업소득(3.3% 공제 후 입금)
+                      </Label>
+                    </div>
+                    <p className="text-sm text-muted-foreground ml-6">
+                      정기적 소득(프리랜서 등에 해당)
+                    </p>
+                  </div>
+                </RadioGroup>
+              </div>
+            )}
           </form>
         </CardContent>
       </Card>
