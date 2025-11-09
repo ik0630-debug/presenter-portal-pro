@@ -1,11 +1,12 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { AlertCircle, CheckCircle2, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, X, Loader2 } from "lucide-react";
 import SignatureCanvas from "react-signature-canvas";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ConsentItem {
   id: string;
@@ -24,7 +25,52 @@ const ConsentChecklist = () => {
   });
   
   const [isSignatureOpen, setIsSignatureOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [sessionId, setSessionId] = useState<string>("");
   const signaturePadRef = useRef<SignatureCanvas>(null);
+
+  useEffect(() => {
+    loadSessionData();
+  }, []);
+
+  const loadSessionData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) {
+        toast.error("로그인 정보를 찾을 수 없습니다.");
+        return;
+      }
+
+      const { data: session } = await supabase
+        .from('speaker_sessions')
+        .select('id')
+        .eq('email', user.email)
+        .maybeSingle();
+
+      if (session) {
+        setSessionId(session.id);
+        
+        // 기존 동의 정보 로드
+        const { data: existingConsent } = await supabase
+          .from('consent_records')
+          .select('*')
+          .eq('session_id', session.id)
+          .maybeSingle();
+
+        if (existingConsent) {
+          setConsents({
+            privacy: existingConsent.privacy_consent,
+            copyright: existingConsent.copyright_consent,
+            portraitRights: existingConsent.portrait_consent,
+            recording: existingConsent.recording_consent,
+            materials: existingConsent.distribution_consent,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Load error:', error);
+    }
+  };
 
 
   const consentItems: ConsentItem[] = [
@@ -114,7 +160,7 @@ const ConsentChecklist = () => {
     signaturePadRef.current?.clear();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (signaturePadRef.current?.isEmpty()) {
@@ -122,13 +168,82 @@ const ConsentChecklist = () => {
       return;
     }
 
-    // TODO: 서버에 동의 정보 및 서명 저장
-    const signatureData = signaturePadRef.current?.toDataURL();
-    console.log("Signature data:", signatureData);
-    console.log("Consents:", consents);
-    
-    toast.success("동의가 완료되었습니다.");
-    setIsSignatureOpen(false);
+    if (!sessionId) {
+      toast.error("세션 정보를 찾을 수 없습니다.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // 서명 이미지를 Blob으로 변환
+      const signatureDataUrl = signaturePadRef.current?.toDataURL();
+      if (!signatureDataUrl) {
+        throw new Error("서명 데이터를 가져올 수 없습니다.");
+      }
+
+      // DataURL을 Blob으로 변환
+      const response = await fetch(signatureDataUrl);
+      const blob = await response.blob();
+      
+      // Storage에 업로드
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error("사용자 정보를 찾을 수 없습니다.");
+      }
+
+      const fileName = `${user.id}/${sessionId}_${Date.now()}.png`;
+      const { error: uploadError } = await supabase.storage
+        .from('consent-signatures')
+        .upload(fileName, blob, {
+          contentType: 'image/png',
+          upsert: true
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      // 동의 정보 저장
+      const { data: existing } = await supabase
+        .from('consent_records')
+        .select('id')
+        .eq('session_id', sessionId)
+        .maybeSingle();
+
+      const consentData = {
+        session_id: sessionId,
+        privacy_consent: consents.privacy === true,
+        copyright_consent: consents.copyright === true,
+        portrait_consent: consents.portraitRights === true,
+        recording_consent: consents.recording === true,
+        distribution_consent: consents.materials === true,
+        signature_image_path: fileName,
+        consent_date: new Date().toISOString(),
+      };
+
+      if (existing) {
+        const { error } = await supabase
+          .from('consent_records')
+          .update(consentData)
+          .eq('id', existing.id);
+
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('consent_records')
+          .insert(consentData);
+
+        if (error) throw error;
+      }
+
+      toast.success("동의가 완료되었습니다.");
+      setIsSignatureOpen(false);
+    } catch (error) {
+      console.error('Submit error:', error);
+      toast.error("동의 저장에 실패했습니다.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
 
@@ -231,11 +346,19 @@ const ConsentChecklist = () => {
                 variant="outline"
                 onClick={clearSignature}
                 className="flex-1"
+                disabled={isSubmitting}
               >
                 지우기
               </Button>
-              <Button type="submit" className="flex-1">
-                확인
+              <Button type="submit" className="flex-1" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    저장 중...
+                  </>
+                ) : (
+                  "확인"
+                )}
               </Button>
             </div>
           </form>

@@ -49,8 +49,10 @@ export type Database = {
           distribution_consent: boolean | null
           id: string
           portrait_consent: boolean | null
+          privacy_consent: boolean | null
           recording_consent: boolean | null
           session_id: string
+          signature_image_path: string | null
           updated_at: string | null
         }
         Insert: {
@@ -60,8 +62,10 @@ export type Database = {
           distribution_consent?: boolean | null
           id?: string
           portrait_consent?: boolean | null
+          privacy_consent?: boolean | null
           recording_consent?: boolean | null
           session_id: string
+          signature_image_path?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -71,8 +75,10 @@ export type Database = {
           distribution_consent?: boolean | null
           id?: string
           portrait_consent?: boolean | null
+          privacy_consent?: boolean | null
           recording_consent?: boolean | null
           session_id?: string
+          signature_image_path?: string | null
           updated_at?: string | null
         }
         Relationships: [
