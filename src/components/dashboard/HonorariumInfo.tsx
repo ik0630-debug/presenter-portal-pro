@@ -26,6 +26,21 @@ const HonorariumInfo = () => {
   const honorariumAmount = 1000000;
   const transportationProvided = true; // TODO: speaker_sessions 또는 project_settings에서 가져와야 함
   const transportationLimit = 30; // 만원 단위, TODO: DB에서 가져와야 함
+  
+  // TODO: DB의 project_settings에서 가져와야 함 (동적 필드)
+  const acceptedItems = [
+    "국내 항공",
+    "기차",
+    "고속(시외)버스",
+    "택시 영수증(시내 이동에 한하며, 최대 2만원 한도)",
+    "톨게이트 영수증"
+  ];
+  const rejectedItems = [
+    "타인 명의로 발행된 항공권",
+    "유류비(주유비)"
+  ];
+  const maxReceiptAmount = transportationLimit; // 만원 단위
+  const receiptValidDates = "2024년 11월 1일 ~ 2024년 11월 10일"; // TODO: 행사일 기준으로 동적으로 계산
 
   const handleFileSelect = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -544,6 +559,38 @@ const HonorariumInfo = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* 영수증 인정 안내 */}
+            <div className="space-y-4 p-4 bg-muted/30 rounded-lg text-sm">
+              <div className="space-y-2">
+                <h4 className="font-semibold">인정항목</h4>
+                <ul className="list-disc list-inside space-y-1 text-muted-foreground ml-2">
+                  {acceptedItems.map((item, index) => (
+                    <li key={index}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+              
+              <div className="space-y-2">
+                <h4 className="font-semibold">불인정항목</h4>
+                <ul className="list-disc list-inside space-y-1 text-muted-foreground ml-2">
+                  {rejectedItems.map((item, index) => (
+                    <li key={index}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="font-semibold">최대 금액</h4>
+                <p className="text-muted-foreground ml-2">{maxReceiptAmount}만원</p>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="font-semibold">영수증 인정 일자</h4>
+                <p className="text-muted-foreground ml-2">{receiptValidDates}</p>
+                <p className="text-xs text-muted-foreground ml-2">(해당 일자에 발행된 영수증에 한해 인정됩니다.)</p>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label>영수증 파일</Label>
               <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary/50 transition-colors">
