@@ -563,6 +563,16 @@ const AdminProjects = () => {
                         </span>
                       </div>
 
+                      {/* 프로젝트 제목 */}
+                      <div className="flex items-center gap-2 min-w-[300px]">
+                        <h3 className="font-semibold text-sm">{project.project_name}</h3>
+                        <span className="text-xs text-muted-foreground">-</span>
+                        <span className="text-sm text-muted-foreground">{project.event_name}</span>
+                        {project.external_project_id && (
+                          <Badge variant="secondary" className="text-xs">외부</Badge>
+                        )}
+                      </div>
+
                       {/* 설정 버튼들 */}
                       <div className="flex items-center gap-2 flex-1 flex-wrap">
                         <Button
@@ -642,41 +652,33 @@ const AdminProjects = () => {
                       </div>
                     </div>
 
-                    {/* 프로젝트 정보 및 링크 (접기 가능) */}
-                    <div className="mt-3 pt-3 border-t space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-sm">{project.project_name}</h3>
-                          <span className="text-xs text-muted-foreground">-</span>
-                          <span className="text-sm text-muted-foreground">{project.event_name}</span>
-                          {project.external_project_id && (
-                            <Badge variant="secondary" className="text-xs">외부 연동</Badge>
-                          )}
-                        </div>
+                    {/* 프로젝트 정보 및 링크 */}
+                    {(project.slug || project.description) && (
+                      <div className="mt-3 pt-3 border-t space-y-2">
                         {project.slug && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              navigator.clipboard.writeText(`${window.location.origin}/${project.slug}/`);
-                              toast.success("발표자 링크가 복사되었습니다");
-                            }}
-                            className="gap-1.5 text-xs h-7"
-                          >
-                            <Download className="h-3.5 w-3.5" />
-                            링크 복사
-                          </Button>
+                          <div className="flex items-center justify-between">
+                            <code className="text-xs bg-muted px-2 py-1 rounded">
+                              {window.location.origin}/{project.slug}/{'발표자이메일'}
+                            </code>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                navigator.clipboard.writeText(`${window.location.origin}/${project.slug}/`);
+                                toast.success("발표자 링크가 복사되었습니다");
+                              }}
+                              className="gap-1.5 text-xs h-7"
+                            >
+                              <Download className="h-3.5 w-3.5" />
+                              링크 복사
+                            </Button>
+                          </div>
+                        )}
+                        {project.description && (
+                          <p className="text-xs text-muted-foreground">{project.description}</p>
                         )}
                       </div>
-                      {project.slug && (
-                        <code className="text-xs bg-muted px-2 py-1 rounded block">
-                          {window.location.origin}/{project.slug}/{'발표자이메일'}
-                        </code>
-                      )}
-                      {project.description && (
-                        <p className="text-xs text-muted-foreground">{project.description}</p>
-                      )}
-                    </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}
