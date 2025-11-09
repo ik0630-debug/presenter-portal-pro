@@ -144,20 +144,20 @@ const ConsentChecklist = () => {
                       </div>
                       <div className="flex gap-2 justify-end">
                         <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleConsentChange(item.id, false)}
-                          className={consents[item.id] === false ? 'border-destructive text-destructive' : ''}
-                        >
-                          동의하지 않습니다
-                        </Button>
-                        <Button
                           size="sm"
                           onClick={() => handleConsentChange(item.id, true)}
                           className={consents[item.id] === true ? 'bg-primary' : 'bg-muted text-muted-foreground hover:bg-primary hover:text-primary-foreground'}
                         >
                           {consents[item.id] === true && <CheckCircle2 className="h-4 w-4 mr-1" />}
                           동의합니다
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleConsentChange(item.id, false)}
+                          className={consents[item.id] === false ? 'border-destructive text-destructive' : ''}
+                        >
+                          동의하지 않습니다
                         </Button>
                       </div>
                     </div>
