@@ -80,13 +80,7 @@ const ConsentChecklist = () => {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-lg">발표 관련 동의서</CardTitle>
-        <CardDescription>
-          각 항목을 펼쳐서 세부 내용을 확인하신 후 동의해주세요
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+      <CardContent className="pt-6">
         <form onSubmit={handleSubmit} className="space-y-6">
           <Accordion type="single" collapsible className="w-full">
             {consentItems.map((item) => (
