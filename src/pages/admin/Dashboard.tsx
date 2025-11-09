@@ -9,45 +9,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  const [adminEmail, setAdminEmail] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const [adminEmail] = useState("관리자");
+  const [isLoading] = useState(false);
   const [debugDialogOpen, setDebugDialogOpen] = useState(false);
   const [debugData, setDebugData] = useState<any>(null);
   const [isDebugging, setIsDebugging] = useState(false);
 
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        navigate("/admin/login");
-        return;
-      }
-
-      const { data: adminData, error } = await supabase
-        .from('admin_users')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-
-      if (error || !adminData) {
-        await supabase.auth.signOut();
-        navigate("/admin/login");
-        return;
-      }
-
-      setAdminEmail(adminData.email);
-    } catch (error) {
-      console.error('Auth check error:', error);
-      navigate("/admin/login");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
