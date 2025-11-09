@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Plus, Edit, Trash2, Calendar, Settings, FileText, Clock } from "lucide-react";
+import { ArrowLeft, Plus, Edit, Trash2, Calendar, Settings, FileText, Clock, CheckSquare } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -317,7 +317,7 @@ const AdminProjects = () => {
                         </div>
                       )}
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                       <Button
                         variant="outline"
                         size="sm"
@@ -335,6 +335,15 @@ const AdminProjects = () => {
                       >
                         <Clock className="h-4 w-4" />
                         마감일 설정
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate(`/admin/projects/${project.id}/presentation-info-settings`)}
+                        className="gap-2"
+                      >
+                        <CheckSquare className="h-4 w-4" />
+                        발표 정보 항목
                       </Button>
                       <Button
                         variant="outline"

@@ -24,12 +24,9 @@ const PresentationUpload = () => {
   const deadline = "2024-12-31 23:59";
   
   // 발표 관련 정보 상태
-  const [presentationInfo, setPresentationInfo] = useState({
-    needsAudio: false,
-    ownLaptop: false,
-    hasVideo: false,
-    specialRequirements: "",
-  });
+  const [presentationFields, setPresentationFields] = useState<any[]>([]);
+  const [presentationInfo, setPresentationInfo] = useState<Record<string, boolean>>({});
+  const [specialRequirements, setSpecialRequirements] = useState("");
 
   // 세션 정보 및 기존 데이터 로드
   useEffect(() => {
@@ -49,7 +46,7 @@ const PresentationUpload = () => {
       // speaker_sessions에서 세션 정보 가져오기
       const { data: session, error: sessionError } = await supabase
         .from('speaker_sessions')
-        .select('id')
+        .select('id, project_id')
         .eq('email', user.email)
         .maybeSingle();
 
@@ -66,6 +63,28 @@ const PresentationUpload = () => {
 
       setSessionId(session.id);
 
+      // 프로젝트 설정에서 발표 정보 필드 가져오기
+      const { data: fieldsSettings } = await supabase
+        .from('project_settings')
+        .select('setting_value')
+        .eq('project_id', session.project_id)
+        .eq('setting_key', 'presentation_info_fields')
+        .maybeSingle();
+
+      if (fieldsSettings?.setting_value) {
+        const fields = (fieldsSettings.setting_value as any[])
+          .filter(f => f.enabled)
+          .sort((a, b) => a.order - b.order);
+        setPresentationFields(fields);
+        
+        // 초기 상태 설정
+        const initialState: Record<string, boolean> = {};
+        fields.forEach(field => {
+          initialState[field.id] = false;
+        });
+        setPresentationInfo(initialState);
+      }
+
       // 발표 정보 로드
       const { data: info, error: infoError } = await supabase
         .from('presentation_info')
@@ -76,12 +95,12 @@ const PresentationUpload = () => {
       if (infoError) {
         console.error('Info error:', infoError);
       } else if (info) {
-        setPresentationInfo({
-          needsAudio: info.use_audio,
-          ownLaptop: info.use_personal_laptop,
-          hasVideo: info.use_video,
-          specialRequirements: info.special_requests || "",
+        const loadedInfo: Record<string, boolean> = {};
+        presentationFields.forEach(field => {
+          loadedInfo[field.id] = info[field.id] || false;
         });
+        setPresentationInfo(loadedInfo);
+        setSpecialRequirements(info.special_requests || "");
       }
 
       // 업로드된 파일 목록 로드
@@ -234,10 +253,8 @@ const PresentationUpload = () => {
 
       const infoData = {
         session_id: sessionId,
-        use_audio: presentationInfo.needsAudio,
-        use_personal_laptop: presentationInfo.ownLaptop,
-        use_video: presentationInfo.hasVideo,
-        special_requests: presentationInfo.specialRequirements,
+        ...presentationInfo,
+        special_requests: specialRequirements,
       };
 
       if (existing) {
@@ -398,65 +415,31 @@ const PresentationUpload = () => {
         <CardHeader>
           <CardTitle className="text-lg">발표 관련 정보</CardTitle>
           <CardDescription>
-            발표 시 필요한 장비 및 요청사항을 입력해주세요
+            발표 자료는 별도의 콘솔데스크에서 송출해 드리며, 발표자께는 화면 전환을 위한 클리커(포인터)가 제공됩니다.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handlePresentationInfoSubmit} className="space-y-6">
             <div className="space-y-4">
-              <div className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-accent/5 transition-colors">
-                <Checkbox
-                  id="needsAudio"
-                  checked={presentationInfo.needsAudio}
-                  onCheckedChange={(checked) =>
-                    setPresentationInfo({ ...presentationInfo, needsAudio: checked as boolean })
-                  }
-                />
-                <Label htmlFor="needsAudio" className="cursor-pointer flex-1">
-                  <div>
-                    <p className="font-medium">소리 사용</p>
-                    <p className="text-sm text-muted-foreground">
-                      발표 중 오디오를 재생합니다
-                    </p>
-                  </div>
-                </Label>
-              </div>
-
-              <div className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-accent/5 transition-colors">
-                <Checkbox
-                  id="ownLaptop"
-                  checked={presentationInfo.ownLaptop}
-                  onCheckedChange={(checked) =>
-                    setPresentationInfo({ ...presentationInfo, ownLaptop: checked as boolean })
-                  }
-                />
-                <Label htmlFor="ownLaptop" className="cursor-pointer flex-1">
-                  <div>
-                    <p className="font-medium">개인 노트북 사용</p>
-                    <p className="text-sm text-muted-foreground">
-                      본인의 노트북으로 발표합니다
-                    </p>
-                  </div>
-                </Label>
-              </div>
-
-              <div className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-accent/5 transition-colors">
-                <Checkbox
-                  id="hasVideo"
-                  checked={presentationInfo.hasVideo}
-                  onCheckedChange={(checked) =>
-                    setPresentationInfo({ ...presentationInfo, hasVideo: checked as boolean })
-                  }
-                />
-                <Label htmlFor="hasVideo" className="cursor-pointer flex-1">
-                  <div>
-                    <p className="font-medium">동영상 상영</p>
-                    <p className="text-sm text-muted-foreground">
-                      발표에 동영상이 포함되어 있습니다
-                    </p>
-                  </div>
-                </Label>
-              </div>
+              {presentationFields.map((field) => (
+                <div key={field.id} className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-accent/5 transition-colors">
+                  <Checkbox
+                    id={field.id}
+                    checked={presentationInfo[field.id] || false}
+                    onCheckedChange={(checked) =>
+                      setPresentationInfo({ ...presentationInfo, [field.id]: checked as boolean })
+                    }
+                  />
+                  <Label htmlFor={field.id} className="cursor-pointer flex-1">
+                    <div>
+                      <p className="font-medium">{field.label}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {field.description}
+                      </p>
+                    </div>
+                  </Label>
+                </div>
+              ))}
             </div>
 
             <div className="space-y-2">
@@ -464,10 +447,8 @@ const PresentationUpload = () => {
               <Textarea
                 id="specialRequirements"
                 placeholder="추가로 필요한 장비나 요청사항을 입력해주세요"
-                value={presentationInfo.specialRequirements}
-                onChange={(e) =>
-                  setPresentationInfo({ ...presentationInfo, specialRequirements: e.target.value })
-                }
+                value={specialRequirements}
+                onChange={(e) => setSpecialRequirements(e.target.value)}
                 rows={4}
                 className="resize-none"
               />
