@@ -171,9 +171,11 @@ const ProfileUpload = () => {
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">프로필 사진</CardTitle>
-          <CardDescription>
-            발표자 소개에 사용될 사진을 업로드해주세요
+          <CardTitle className="text-lg">고화질 프로필 사진</CardTitle>
+          <CardDescription className="space-y-1">
+            <p>발표자 소개에 사용될 사진을 업로드해주세요</p>
+            <p>대형 화면에 송출될 수 있으므로 가급적 고해상도(300dpi급)의 사진을 권장합니다.</p>
+            <p>(사진 해상도의 문제가 있을 경우 운영 사무국에서 별도의 안내를 드릴 예정입니다.)</p>
           </CardDescription>
         </CardHeader>
         <CardContent>
