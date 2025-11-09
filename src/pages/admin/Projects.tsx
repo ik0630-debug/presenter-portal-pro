@@ -11,8 +11,6 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -79,8 +77,7 @@ const AdminProjects = () => {
   });
 
   useEffect(() => {
-    // 로그인 기능 비활성화 - 추후 재활성화 예정
-    // checkAuth();
+    checkAuth();
     fetchProjects();
   }, []);
 
@@ -90,36 +87,32 @@ const AdminProjects = () => {
     }
   }, [isDialogOpen, editingProject]);
 
-  // const checkAuth = async () => {
-  //   const { data: { user } } = await supabase.auth.getUser();
-  //   
-  //   if (!user) {
-  //     navigate("/admin/login");
-  //     return;
-  //   }
+  const checkAuth = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      navigate("/admin/login");
+      return;
+    }
 
-  //   const { data: adminData } = await supabase
-  //     .from('admin_users')
-  //     .select('*')
-  //     .eq('user_id', user.id)
-  //     .single();
+    const { data: adminData } = await supabase
+      .from('admin_users')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
 
-  //   if (!adminData) {
-  //     navigate("/admin/login");
-  //   }
-  // };
+    if (!adminData) {
+      navigate("/admin/login");
+    }
+  };
 
   const fetchProjects = async () => {
     try {
-      // 로컬 DB에서 프로젝트 목록 가져오기
-      const { data, error } = await supabase
-        .from('projects')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const { data, error } = await supabase.functions.invoke('get-external-projects');
 
       if (error) throw error;
       
-      setProjects(data || []);
+      setProjects(data?.projects || []);
     } catch (error: any) {
       toast.error("프로젝트 목록을 불러오는데 실패했습니다.");
       console.error(error);
@@ -211,15 +204,13 @@ const AdminProjects = () => {
     if (!deleteProject) return;
 
     try {
-      // 로컬 DB에서만 삭제 (외부 원본 DB는 유지)
-      const { error } = await supabase
-        .from('projects')
-        .delete()
-        .eq('id', deleteProject.id);
+      const { data, error } = await supabase.functions.invoke('delete-external-project', {
+        body: { id: deleteProject.id }
+      });
 
       if (error) throw error;
       
-      toast.success("프로젝트가 삭제되었습니다. (원본 데이터는 유지됩니다)");
+      toast.success("프로젝트가 삭제되었습니다.");
       setDeleteProject(null);
       fetchProjects();
     } catch (error: any) {
@@ -497,129 +488,101 @@ const AdminProjects = () => {
           ) : (
             <div className="grid gap-4">
               {projects.map((project) => (
-              <Collapsible key={project.id}>
-                <Card className="shadow-elevated overflow-hidden">
-                  <CollapsibleTrigger asChild>
-                    <CardHeader className="cursor-pointer hover:bg-accent/50 transition-colors">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <ChevronDown className="h-5 w-5 transition-transform duration-200 data-[state=open]:rotate-180" />
-                            <CardTitle className="text-xl">{project.project_name || project.event_name}</CardTitle>
-                          </div>
-                          <div className="ml-7 mt-2 space-y-2">
-                            <div className="flex flex-wrap gap-2">
-                              <Badge variant="secondary">{project.event_name}</Badge>
-                              {project.description && (
-                                <Badge variant="outline">{project.description}</Badge>
-                              )}
-                            </div>
-                            {(project.start_date || project.end_date) && (
-                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <Calendar className="h-4 w-4" />
-                                <span>
-                                  {project.start_date && new Date(project.start_date).toLocaleDateString('ko-KR')}
-                                  {project.start_date && project.end_date && ' ~ '}
-                                  {project.end_date && new Date(project.end_date).toLocaleDateString('ko-KR')}
-                                </span>
-                              </div>
-                            )}
-                          </div>
+              <Card key={project.id} className="shadow-elevated">
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <CardTitle className="text-xl">{project.project_name}</CardTitle>
+                      <CardDescription className="mt-2">
+                        {project.event_name}
+                      </CardDescription>
+                      {project.description && (
+                        <p className="text-sm text-muted-foreground mt-2">{project.description}</p>
+                      )}
+                      {(project.start_date || project.end_date) && (
+                        <div className="flex items-center gap-2 mt-3 text-sm text-muted-foreground">
+                          <Calendar className="h-4 w-4" />
+                          <span>
+                            {project.start_date && new Date(project.start_date).toLocaleDateString('ko-KR')}
+                            {project.start_date && project.end_date && ' ~ '}
+                            {project.end_date && new Date(project.end_date).toLocaleDateString('ko-KR')}
+                          </span>
                         </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openEditDialog(project);
-                            }}
-                            className="gap-2"
-                          >
-                            <Edit className="h-4 w-4" />
-                            수정
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeleteProject(project);
-                            }}
-                            className="gap-2"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            삭제
-                          </Button>
-                        </div>
-                      </div>
-                    </CardHeader>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <CardContent className="pt-0 pb-6">
-                      <div className="ml-7 pt-4 border-t">
-                        <p className="text-sm text-muted-foreground mb-4">발주: 포항시</p>
-                        <div className="flex flex-wrap gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => navigate(`/admin/projects/${project.id}/transportation`)}
-                            className="gap-2"
-                          >
-                            <Settings className="h-4 w-4" />
-                            교통비 설정
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => navigate(`/admin/projects/${project.id}/receipt-settings`)}
-                            className="gap-2"
-                          >
-                            <Clock className="h-4 w-4" />
-                            마감일 설정
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => navigate(`/admin/projects/${project.id}/presentation-fields`)}
-                            className="gap-2"
-                          >
-                            <ListChecks className="h-4 w-4" />
-                            발표 정보 필드
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => navigate(`/admin/projects/${project.id}/consent-fields`)}
-                            className="gap-2"
-                          >
-                            <FileCheck className="h-4 w-4" />
-                            동의서 설정
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => navigate(`/admin/projects/${project.id}/arrival-guide`)}
-                            className="gap-2"
-                          >
-                            <MapPinned className="h-4 w-4" />
-                            현장안내 설정
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => navigate(`/admin/projects/${project.id}/presentations`)}
-                            className="gap-2"
-                          >
-                            <FileText className="h-4 w-4" />
-                            발표자료
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </CollapsibleContent>
-                </Card>
-              </Collapsible>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate(`/admin/projects/${project.id}/transportation`)}
+                        className="gap-2"
+                      >
+                        <Settings className="h-4 w-4" />
+                        교통비 설정
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate(`/admin/projects/${project.id}/receipt-settings`)}
+                        className="gap-2"
+                      >
+                        <Clock className="h-4 w-4" />
+                        마감일 설정
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate(`/admin/projects/${project.id}/presentation-fields`)}
+                        className="gap-2"
+                      >
+                        <ListChecks className="h-4 w-4" />
+                        발표 정보 필드
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate(`/admin/projects/${project.id}/consent-fields`)}
+                        className="gap-2"
+                      >
+                        <FileCheck className="h-4 w-4" />
+                        동의서 설정
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate(`/admin/projects/${project.id}/arrival-guide`)}
+                        className="gap-2"
+                      >
+                        <MapPinned className="h-4 w-4" />
+                        현장안내 설정
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate(`/admin/projects/${project.id}/presentations`)}
+                        className="gap-2"
+                      >
+                        <FileText className="h-4 w-4" />
+                        발표자료
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => openEditDialog(project)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setDeleteProject(project)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+              </Card>
               ))}
             </div>
           )}

@@ -72,29 +72,28 @@ const ArrivalGuideSettings = () => {
   ]);
 
   useEffect(() => {
-    // 로그인 기능 비활성화 - 추후 재활성화 예정
-    // checkAuth();
+    checkAuth();
     loadSettings();
   }, [projectId]);
 
-  // const checkAuth = async () => {
-  //   const { data: { user } } = await supabase.auth.getUser();
-  //   
-  //   if (!user) {
-  //     navigate("/admin/login");
-  //     return;
-  //   }
+  const checkAuth = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      navigate("/admin/login");
+      return;
+    }
 
-  //   const { data: adminData } = await supabase
-  //     .from('admin_users')
-  //     .select('*')
-  //     .eq('user_id', user.id)
-  //     .single();
+    const { data: adminData } = await supabase
+      .from('admin_users')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
 
-  //   if (!adminData) {
-  //     navigate("/admin/login");
-  //   }
-  // };
+    if (!adminData) {
+      navigate("/admin/login");
+    }
+  };
 
   const loadSettings = async () => {
     try {
