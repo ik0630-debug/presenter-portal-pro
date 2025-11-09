@@ -212,7 +212,6 @@ const ProfileUpload = () => {
                 />
               </label>
             )}
-            <p className="text-xs text-muted-foreground">JPG, PNG (5MB 이내)</p>
           </div>
         </CardContent>
       </Card>
@@ -320,7 +319,7 @@ const ProfileUpload = () => {
                   클릭하여 CV 파일 선택
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  PDF, DOC, DOCX (10MB 이내)
+                  PDF, DOC(DOCX), HWP(HWPX) (10MB 이내)
                 </p>
                 <input
                   id="cv-upload"
