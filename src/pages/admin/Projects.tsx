@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -488,101 +490,129 @@ const AdminProjects = () => {
           ) : (
             <div className="grid gap-4">
               {projects.map((project) => (
-              <Card key={project.id} className="shadow-elevated">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="text-xl">{project.project_name}</CardTitle>
-                      <CardDescription className="mt-2">
-                        {project.event_name}
-                      </CardDescription>
-                      {project.description && (
-                        <p className="text-sm text-muted-foreground mt-2">{project.description}</p>
-                      )}
-                      {(project.start_date || project.end_date) && (
-                        <div className="flex items-center gap-2 mt-3 text-sm text-muted-foreground">
-                          <Calendar className="h-4 w-4" />
-                          <span>
-                            {project.start_date && new Date(project.start_date).toLocaleDateString('ko-KR')}
-                            {project.start_date && project.end_date && ' ~ '}
-                            {project.end_date && new Date(project.end_date).toLocaleDateString('ko-KR')}
-                          </span>
+              <Collapsible key={project.id}>
+                <Card className="shadow-elevated overflow-hidden">
+                  <CollapsibleTrigger asChild>
+                    <CardHeader className="cursor-pointer hover:bg-accent/50 transition-colors">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <ChevronDown className="h-5 w-5 transition-transform duration-200" />
+                            <CardTitle className="text-xl">{project.project_name}</CardTitle>
+                          </div>
+                          <div className="ml-7 mt-2 space-y-2">
+                            <div className="flex flex-wrap gap-2">
+                              <Badge variant="secondary">{project.event_name}</Badge>
+                              {project.description && (
+                                <Badge variant="outline">{project.description}</Badge>
+                              )}
+                            </div>
+                            {(project.start_date || project.end_date) && (
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Calendar className="h-4 w-4" />
+                                <span>
+                                  {project.start_date && new Date(project.start_date).toLocaleDateString('ko-KR')}
+                                  {project.start_date && project.end_date && ' ~ '}
+                                  {project.end_date && new Date(project.end_date).toLocaleDateString('ko-KR')}
+                                </span>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      )}
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => navigate(`/admin/projects/${project.id}/transportation`)}
-                        className="gap-2"
-                      >
-                        <Settings className="h-4 w-4" />
-                        교통비 설정
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => navigate(`/admin/projects/${project.id}/receipt-settings`)}
-                        className="gap-2"
-                      >
-                        <Clock className="h-4 w-4" />
-                        마감일 설정
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => navigate(`/admin/projects/${project.id}/presentation-fields`)}
-                        className="gap-2"
-                      >
-                        <ListChecks className="h-4 w-4" />
-                        발표 정보 필드
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => navigate(`/admin/projects/${project.id}/consent-fields`)}
-                        className="gap-2"
-                      >
-                        <FileCheck className="h-4 w-4" />
-                        동의서 설정
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => navigate(`/admin/projects/${project.id}/arrival-guide`)}
-                        className="gap-2"
-                      >
-                        <MapPinned className="h-4 w-4" />
-                        현장안내 설정
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => navigate(`/admin/projects/${project.id}/presentations`)}
-                        className="gap-2"
-                      >
-                        <FileText className="h-4 w-4" />
-                        발표자료
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => openEditDialog(project)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => setDeleteProject(project)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-              </Card>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEditDialog(project);
+                            }}
+                            className="gap-2"
+                          >
+                            <Edit className="h-4 w-4" />
+                            수정
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteProject(project);
+                            }}
+                            className="gap-2"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            삭제
+                          </Button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <CardContent className="pt-0 pb-6">
+                      <div className="ml-7 pt-4 border-t">
+                        <p className="text-sm text-muted-foreground mb-4">발주: 포항시</p>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/admin/projects/${project.id}/transportation`)}
+                            className="gap-2"
+                          >
+                            <Settings className="h-4 w-4" />
+                            교통비 설정
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/admin/projects/${project.id}/receipt-settings`)}
+                            className="gap-2"
+                          >
+                            <Clock className="h-4 w-4" />
+                            마감일 설정
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/admin/projects/${project.id}/presentation-fields`)}
+                            className="gap-2"
+                          >
+                            <ListChecks className="h-4 w-4" />
+                            발표 정보 필드
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/admin/projects/${project.id}/consent-fields`)}
+                            className="gap-2"
+                          >
+                            <FileCheck className="h-4 w-4" />
+                            동의서 설정
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/admin/projects/${project.id}/arrival-guide`)}
+                            className="gap-2"
+                          >
+                            <MapPinned className="h-4 w-4" />
+                            현장안내 설정
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/admin/projects/${project.id}/presentations`)}
+                            className="gap-2"
+                          >
+                            <FileText className="h-4 w-4" />
+                            발표자료
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </CollapsibleContent>
+                </Card>
+              </Collapsible>
               ))}
             </div>
           )}
