@@ -14,3 +14,39 @@ verify_jwt = false
 
 [functions.webhook-sync-project]
 verify_jwt = false
+
+[functions.verify-admin]
+verify_jwt = false
+
+[functions.debug-external-db]
+verify_jwt = false
+
+[functions.create-external-project]
+verify_jwt = false
+
+[functions.update-external-project]
+verify_jwt = false
+
+[functions.delete-external-project]
+verify_jwt = false
+
+[functions.get-speaker-session]
+verify_jwt = false
+
+[functions.update-speaker-profile]
+verify_jwt = false
+
+[functions.save-presentation-info]
+verify_jwt = false
+
+[functions.upload-presentation-file]
+verify_jwt = false
+
+[functions.save-consent]
+verify_jwt = false
+
+[functions.save-transportation]
+verify_jwt = false
+
+[functions.save-attendance-response]
+verify_jwt = false
