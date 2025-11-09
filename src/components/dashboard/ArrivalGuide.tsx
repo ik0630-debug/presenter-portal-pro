@@ -8,6 +8,47 @@ import { CalendarClock, MapPin, Car, Clock, Phone, Download, Printer, MapPinned 
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
+// Temporary type definitions until types.ts is regenerated
+interface ArrivalGuideSettings {
+  id: string;
+  project_id: string;
+  venue_name: string;
+  venue_address: string;
+  venue_map_url: string | null;
+  presentation_time: string | null;
+  presentation_room: string | null;
+  check_in_time: string | null;
+  check_in_location: string | null;
+  parking_info: string | null;
+  contact_name: string | null;
+  contact_phone: string | null;
+  contact_email: string | null;
+  emergency_contact: string | null;
+  additional_notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ArrivalChecklistItem {
+  id: string;
+  project_id: string;
+  item_text: string;
+  display_order: number;
+  requires_response: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+interface SpeakerChecklistResponse {
+  id: string;
+  session_id: string;
+  checklist_item_id: string;
+  is_checked: boolean;
+  response_text: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 interface ChecklistItem {
   id: string;
   item_text: string;
@@ -60,7 +101,7 @@ const ArrivalGuide = () => {
 
       // Load arrival guide settings
       const { data: settings, error: settingsError } = await supabase
-        .from('arrival_guide_settings')
+        .from('arrival_guide_settings' as any)
         .select('*')
         .eq('project_id', session.project_id)
         .maybeSingle();
@@ -68,28 +109,29 @@ const ArrivalGuide = () => {
       if (settingsError) throw settingsError;
 
       if (settings) {
+        const guideSettings = settings as unknown as ArrivalGuideSettings;
         setArrivalData({
           eventName: session.event_name || "",
-          venue: settings.venue_name || "",
-          address: settings.venue_address || "",
-          room: settings.presentation_room || "",
-          time: settings.presentation_time || "",
-          checkInTime: settings.check_in_time || "",
-          checkInLocation: settings.check_in_location || "",
-          parking: settings.parking_info || "",
+          venue: guideSettings.venue_name || "",
+          address: guideSettings.venue_address || "",
+          room: guideSettings.presentation_room || "",
+          time: guideSettings.presentation_time || "",
+          checkInTime: guideSettings.check_in_time || "",
+          checkInLocation: guideSettings.check_in_location || "",
+          parking: guideSettings.parking_info || "",
           contact: {
-            name: settings.contact_name || "",
-            phone: settings.contact_phone || "",
-            email: settings.contact_email || "",
+            name: guideSettings.contact_name || "",
+            phone: guideSettings.contact_phone || "",
+            email: guideSettings.contact_email || "",
           },
-          emergency: settings.emergency_contact || "",
-          notes: settings.additional_notes || "",
+          emergency: guideSettings.emergency_contact || "",
+          notes: guideSettings.additional_notes || "",
         });
       }
 
       // Load checklist items
       const { data: items, error: itemsError } = await supabase
-        .from('arrival_checklist_items')
+        .from('arrival_checklist_items' as any)
         .select('*')
         .eq('project_id', session.project_id)
         .order('display_order');
@@ -97,19 +139,22 @@ const ArrivalGuide = () => {
       if (itemsError) throw itemsError;
 
       if (items && items.length > 0) {
+        const checklistItems = items as unknown as ArrivalChecklistItem[];
+        
         // Load speaker responses
         const { data: responses, error: responsesError } = await supabase
-          .from('speaker_checklist_responses')
+          .from('speaker_checklist_responses' as any)
           .select('*')
           .eq('session_id', session.id);
 
         if (responsesError) throw responsesError;
 
+        const checklistResponses = (responses || []) as unknown as SpeakerChecklistResponse[];
         const responseMap = new Map(
-          responses?.map(r => [r.checklist_item_id, r]) || []
+          checklistResponses.map(r => [r.checklist_item_id, r])
         );
 
-        setChecklistItems(items.map(item => ({
+        setChecklistItems(checklistItems.map(item => ({
           id: item.id,
           item_text: item.item_text,
           requires_response: item.requires_response,
@@ -130,7 +175,7 @@ const ArrivalGuide = () => {
 
     try {
       const { error } = await supabase
-        .from('speaker_checklist_responses')
+        .from('speaker_checklist_responses' as any)
         .upsert({
           session_id: sessionId,
           checklist_item_id: itemId,
@@ -170,7 +215,7 @@ const ArrivalGuide = () => {
 
     try {
       const { error } = await supabase
-        .from('speaker_checklist_responses')
+        .from('speaker_checklist_responses' as any)
         .upsert({
           session_id: sessionId,
           checklist_item_id: itemId,

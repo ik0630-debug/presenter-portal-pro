@@ -10,6 +10,33 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Switch } from "@/components/ui/switch";
 
+// Temporary type definitions until types.ts is regenerated
+interface ArrivalGuideSettings {
+  id: string;
+  project_id: string;
+  venue_name: string;
+  venue_address: string;
+  venue_map_url: string | null;
+  presentation_time: string | null;
+  presentation_room: string | null;
+  check_in_time: string | null;
+  check_in_location: string | null;
+  parking_info: string | null;
+  contact_name: string | null;
+  contact_phone: string | null;
+  contact_email: string | null;
+  emergency_contact: string | null;
+  additional_notes: string | null;
+}
+
+interface ArrivalChecklistItem {
+  id: string;
+  project_id: string;
+  item_text: string;
+  display_order: number;
+  requires_response: boolean;
+}
+
 interface ChecklistItem {
   id?: string;
   item_text: string;
@@ -72,7 +99,7 @@ const ArrivalGuideSettings = () => {
     try {
       // Load arrival guide settings
       const { data: settings, error: settingsError } = await supabase
-        .from('arrival_guide_settings')
+        .from('arrival_guide_settings' as any)
         .select('*')
         .eq('project_id', projectId)
         .maybeSingle();
@@ -80,26 +107,27 @@ const ArrivalGuideSettings = () => {
       if (settingsError) throw settingsError;
 
       if (settings) {
+        const guideSettings = settings as unknown as ArrivalGuideSettings;
         setFormData({
-          venue_name: settings.venue_name || "",
-          venue_address: settings.venue_address || "",
-          venue_map_url: settings.venue_map_url || "",
-          presentation_time: settings.presentation_time || "",
-          presentation_room: settings.presentation_room || "",
-          check_in_time: settings.check_in_time || "",
-          check_in_location: settings.check_in_location || "",
-          parking_info: settings.parking_info || "",
-          contact_name: settings.contact_name || "",
-          contact_phone: settings.contact_phone || "",
-          contact_email: settings.contact_email || "",
-          emergency_contact: settings.emergency_contact || "",
-          additional_notes: settings.additional_notes || formData.additional_notes,
+          venue_name: guideSettings.venue_name || "",
+          venue_address: guideSettings.venue_address || "",
+          venue_map_url: guideSettings.venue_map_url || "",
+          presentation_time: guideSettings.presentation_time || "",
+          presentation_room: guideSettings.presentation_room || "",
+          check_in_time: guideSettings.check_in_time || "",
+          check_in_location: guideSettings.check_in_location || "",
+          parking_info: guideSettings.parking_info || "",
+          contact_name: guideSettings.contact_name || "",
+          contact_phone: guideSettings.contact_phone || "",
+          contact_email: guideSettings.contact_email || "",
+          emergency_contact: guideSettings.emergency_contact || "",
+          additional_notes: guideSettings.additional_notes || formData.additional_notes,
         });
       }
 
       // Load checklist items
       const { data: items, error: itemsError } = await supabase
-        .from('arrival_checklist_items')
+        .from('arrival_checklist_items' as any)
         .select('*')
         .eq('project_id', projectId)
         .order('display_order');
@@ -107,7 +135,8 @@ const ArrivalGuideSettings = () => {
       if (itemsError) throw itemsError;
 
       if (items && items.length > 0) {
-        setChecklistItems(items);
+        const checklistItems = items as unknown as ArrivalChecklistItem[];
+        setChecklistItems(checklistItems);
       }
     } catch (error: any) {
       console.error(error);
@@ -124,7 +153,7 @@ const ArrivalGuideSettings = () => {
     try {
       // Upsert arrival guide settings
       const { error: settingsError } = await supabase
-        .from('arrival_guide_settings')
+        .from('arrival_guide_settings' as any)
         .upsert({
           project_id: projectId,
           ...formData,
@@ -136,7 +165,7 @@ const ArrivalGuideSettings = () => {
 
       // Delete existing checklist items
       const { error: deleteError } = await supabase
-        .from('arrival_checklist_items')
+        .from('arrival_checklist_items' as any)
         .delete()
         .eq('project_id', projectId);
 
@@ -152,7 +181,7 @@ const ArrivalGuideSettings = () => {
         }));
 
         const { error: itemsError } = await supabase
-          .from('arrival_checklist_items')
+          .from('arrival_checklist_items' as any)
           .insert(itemsToInsert);
 
         if (itemsError) throw itemsError;
