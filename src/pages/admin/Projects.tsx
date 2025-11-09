@@ -110,11 +110,15 @@ const AdminProjects = () => {
 
   const fetchProjects = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('get-external-projects');
+      // 로컬 DB에서 프로젝트 목록 가져오기
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       
-      setProjects(data?.projects || []);
+      setProjects(data || []);
     } catch (error: any) {
       toast.error("프로젝트 목록을 불러오는데 실패했습니다.");
       console.error(error);
