@@ -67,6 +67,7 @@ Deno.serve(async (req) => {
 
         return {
           ...project,
+          project_name: project.title, // 외부 API의 title을 project_name으로 매핑
           speakers: (projectSpeakers || []).map((ps: any) => ({
             id: ps.suppliers?.id,
             name: ps.suppliers?.name,
