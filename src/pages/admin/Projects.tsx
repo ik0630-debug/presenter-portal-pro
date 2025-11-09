@@ -45,8 +45,9 @@ interface Project {
 
 interface ExternalProject {
   id: string;
+  title?: string;
   project_name: string;
-  event_name: string;
+  event_name?: string;
   description: string | null;
   start_date: string | null;
   end_date: string | null;
@@ -358,7 +359,7 @@ const AdminProjects = () => {
                           <SelectContent>
                             {externalProjects.map((project) => (
                               <SelectItem key={project.id} value={project.id}>
-                                {project.project_name} - {project.event_name}
+                                {project.project_name || '제목 없음'}
                                 {project.start_date && ` (${new Date(project.start_date).toLocaleDateString('ko-KR')})`}
                               </SelectItem>
                             ))}
