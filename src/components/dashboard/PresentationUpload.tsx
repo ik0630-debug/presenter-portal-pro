@@ -464,6 +464,9 @@ const PresentationUpload = () => {
 
             <div className="space-y-2">
               <Label htmlFor="specialRequirements">특별 요청사항</Label>
+              <p className="text-sm text-muted-foreground">
+                클리커(포인터) 외 키보드 마우스 컨트롤 등 시연이 필요한 경우 반드시 요청사항에 입력 바랍니다.
+              </p>
               <Textarea
                 id="specialRequirements"
                 placeholder="추가로 필요한 장비나 요청사항을 입력해주세요"
@@ -474,9 +477,6 @@ const PresentationUpload = () => {
                 rows={4}
                 className="resize-none"
               />
-              <p className="text-xs text-muted-foreground">
-                예: 레이저 포인터, 화이트보드, 추가 마이크 등
-              </p>
             </div>
 
             <Button type="submit" className="w-full" disabled={isLoading}>
