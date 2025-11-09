@@ -554,8 +554,11 @@ const HonorariumInfo = () => {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">교통비 영수증</CardTitle>
-            <CardDescription>
-              교통비 실비 지급을 위해 영수증을 첨부해 주세요
+            <CardDescription className="space-y-1">
+              <p>교통비 실비 지급을 위해 영수증을 첨부해 주세요</p>
+              <p className="text-destructive font-medium">
+                강연 종료 후 3일 이내(주말, 휴일 포함)에 본 포털에 접속하시면 업로드가 가능합니다.
+              </p>
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
