@@ -18,6 +18,17 @@ const HonorariumInfo = () => {
   const [signatureMethod, setSignatureMethod] = useState<"upload" | "draw">("draw");
   const [signatureFile, setSignatureFile] = useState<File | null>(null);
   const signatureRef = useRef<SignatureCanvas>(null);
+  
+  // 수동 입력 관련 state
+  const [manualInput, setManualInput] = useState(false);
+  const [manualData, setManualData] = useState({
+    name: "",
+    idNumber: "",
+    address: "",
+    bankName: "",
+    accountNumber: "",
+    accountHolder: ""
+  });
 
   const handleFileSelect = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -71,9 +82,21 @@ const HonorariumInfo = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!idFile || !bankbookFile) {
-      toast.error("신분증과 통장사본을 모두 업로드해주세요.");
-      return;
+    // 수동 입력 또는 파일 업로드 검증
+    if (!manualInput) {
+      if (!idFile || !bankbookFile) {
+        toast.error("신분증과 통장사본을 모두 업로드해주세요.");
+        return;
+      }
+    } else {
+      // 본인 또는 대리인의 경우 수동 입력 필드 검증
+      if (recipientType === "본인" || recipientType === "대리인") {
+        const { name, idNumber, address, bankName, accountNumber, accountHolder } = manualData;
+        if (!name || !idNumber || !address || !bankName || !accountNumber || !accountHolder) {
+          toast.error("모든 필수 정보를 입력해주세요.");
+          return;
+        }
+      }
     }
 
     if (recipientType === "대리인") {
@@ -282,10 +305,94 @@ const HonorariumInfo = () => {
         <CardHeader>
           <CardTitle className="text-lg">첨부 서류</CardTitle>
           <CardDescription>
-            신분증과 통장사본을 업로드해주세요 (각 10MB 이내)
+            신분증과 통장사본 정보를 입력해 주세요
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* 수동 입력 옵션 */}
+          <div className="flex items-start space-x-2 p-4 bg-muted/30 rounded-lg">
+            <Checkbox
+              id="manual-input"
+              checked={manualInput}
+              onCheckedChange={(checked) => setManualInput(checked as boolean)}
+            />
+            <Label 
+              htmlFor="manual-input" 
+              className="font-normal cursor-pointer leading-tight"
+            >
+              파일 업로드 대신 직접 정보를 입력하겠습니다.
+            </Label>
+          </div>
+
+          {/* 수동 입력 필드 - 본인 또는 대리인이고 체크박스 선택시 */}
+          {manualInput && (recipientType === "본인" || recipientType === "대리인") && (
+            <div className="space-y-4 p-4 border rounded-lg">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="manual-name">이름 *</Label>
+                  <Input
+                    id="manual-name"
+                    value={manualData.name}
+                    onChange={(e) => setManualData({ ...manualData, name: e.target.value })}
+                    placeholder="홍길동"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="manual-id-number">주민등록번호 *</Label>
+                  <Input
+                    id="manual-id-number"
+                    value={manualData.idNumber}
+                    onChange={(e) => setManualData({ ...manualData, idNumber: e.target.value })}
+                    placeholder="000000-0000000"
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="manual-address">주소 *</Label>
+                <Input
+                  id="manual-address"
+                  value={manualData.address}
+                  onChange={(e) => setManualData({ ...manualData, address: e.target.value })}
+                  placeholder="서울시 강남구..."
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="manual-bank">은행명 *</Label>
+                  <Input
+                    id="manual-bank"
+                    value={manualData.bankName}
+                    onChange={(e) => setManualData({ ...manualData, bankName: e.target.value })}
+                    placeholder="국민은행"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="manual-account">계좌번호 *</Label>
+                  <Input
+                    id="manual-account"
+                    value={manualData.accountNumber}
+                    onChange={(e) => setManualData({ ...manualData, accountNumber: e.target.value })}
+                    placeholder="000-00-0000-000"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="manual-holder">예금주 *</Label>
+                  <Input
+                    id="manual-holder"
+                    value={manualData.accountHolder}
+                    onChange={(e) => setManualData({ ...manualData, accountHolder: e.target.value })}
+                    placeholder="홍길동"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 파일 업로드 - 수동 입력 미선택시 */}
+          {!manualInput && (
+            <>
           {/* 신분증 업로드 */}
           <div className="space-y-2">
             <Label>신분증 사본 *</Label>
@@ -365,6 +472,8 @@ const HonorariumInfo = () => {
               )}
             </div>
           </div>
+          </>
+          )}
 
           <Button
             type="submit"
