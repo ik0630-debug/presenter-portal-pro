@@ -92,30 +92,18 @@ const PresentationUpload = () => {
         { id: 'use_personal_laptop', label: '개인 노트북 사용', description: '개인 노트북을 사용하여 발표합니다', order: 3, enabled: true },
       ];
 
+      let allFields = defaultFields;
+      
       if (fieldsSettings?.setting_value) {
         // 설정된 커스텀 필드 중 enabled=true인 것만 가져오기
         const customFields = (fieldsSettings.setting_value as any[])
           .filter(f => f.enabled && !['use_video', 'use_audio', 'use_personal_laptop'].includes(f.id));
         
         // 기본 필드 + 커스텀 필드를 합치고 순서대로 정렬
-        const allFields = [...defaultFields, ...customFields].sort((a, b) => a.order - b.order);
-        setPresentationFields(allFields);
-        
-        // 초기 상태 설정
-        const initialState: Record<string, boolean> = {};
-        allFields.forEach(field => {
-          initialState[field.id] = false;
-        });
-        setPresentationInfo(initialState);
-      } else {
-        // 설정이 없으면 기본 필드만 표시
-        setPresentationFields(defaultFields);
-        const initialState: Record<string, boolean> = {};
-        defaultFields.forEach(field => {
-          initialState[field.id] = false;
-        });
-        setPresentationInfo(initialState);
+        allFields = [...defaultFields, ...customFields].sort((a, b) => a.order - b.order);
       }
+      
+      setPresentationFields(allFields);
 
       // 발표 정보 로드
       const { data: info, error: infoError } = await supabase
@@ -126,14 +114,15 @@ const PresentationUpload = () => {
 
       if (infoError) {
         console.error('Info error:', infoError);
-      } else if (info) {
-        const loadedInfo: Record<string, boolean> = {};
-        presentationFields.forEach(field => {
-          loadedInfo[field.id] = info[field.id] || false;
-        });
-        setPresentationInfo(loadedInfo);
-        setSpecialRequirements(info.special_requests || "");
       }
+      
+      // 발표 정보 상태 설정 (DB에서 로드된 값 또는 기본값)
+      const loadedInfo: Record<string, boolean> = {};
+      allFields.forEach(field => {
+        loadedInfo[field.id] = info?.[field.id] || false;
+      });
+      setPresentationInfo(loadedInfo);
+      setSpecialRequirements(info?.special_requests || "");
 
       // 업로드된 파일 목록 로드
       const { data: files, error: filesError } = await supabase
