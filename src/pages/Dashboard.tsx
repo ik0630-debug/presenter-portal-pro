@@ -3,21 +3,22 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LogOut, CheckCircle2, Circle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Progress } from "@/components/ui/progress";
 import SpeakerConfirmation from "@/components/dashboard/SpeakerConfirmation";
-import ConsentChecklist from "@/components/dashboard/ConsentChecklist";
+import ProfileUpload from "@/components/dashboard/ProfileUpload";
+import HonorariumInfo from "@/components/dashboard/HonorariumInfo";
 import PresentationUpload from "@/components/dashboard/PresentationUpload";
 import PresentationInfo from "@/components/dashboard/PresentationInfo";
-import HonorariumInfo from "@/components/dashboard/HonorariumInfo";
+import ConsentChecklist from "@/components/dashboard/ConsentChecklist";
 import ArrivalGuide from "@/components/dashboard/ArrivalGuide";
 
 const STEPS = [
   { id: 'confirm', label: '발표자 확인', component: null },
+  { id: 'profile', label: '프로필 등록', component: ProfileUpload },
+  { id: 'honorarium', label: '강연료 정보', component: HonorariumInfo },
+  { id: 'upload', label: '발표자료', component: PresentationUpload },
+  { id: 'info', label: '발표정보 확인', component: PresentationInfo },
   { id: 'consent', label: '동의서', component: ConsentChecklist },
-  { id: 'upload', label: '자료 업로드', component: PresentationUpload },
-  { id: 'info', label: '발표 정보', component: PresentationInfo },
-  { id: 'honorarium', label: '강연료', component: HonorariumInfo },
-  { id: 'arrival', label: '현장 안내', component: ArrivalGuide },
+  { id: 'arrival', label: '현장안내', component: ArrivalGuide },
 ];
 
 const Dashboard = () => {
@@ -36,7 +37,7 @@ const Dashboard = () => {
 
   const handleConfirmation = () => {
     setShowConfirmation(false);
-    setCurrentStep(1); // 동의서 단계로 시작
+    setCurrentStep(1); // 프로필 등록 단계로 시작
   };
 
   const handleLogout = () => {
@@ -58,7 +59,6 @@ const Dashboard = () => {
     }
   };
 
-  const progress = ((currentStep) / (STEPS.length - 1)) * 100;
   const CurrentStepComponent = STEPS[currentStep]?.component;
 
   if (showConfirmation) {
@@ -91,14 +91,10 @@ const Dashboard = () => {
                 <div>
                   <h2 className="text-lg font-semibold">진행 상황</h2>
                   <p className="text-sm text-muted-foreground">
-                    {currentStep}/{STEPS.length - 1} 단계 완료
+                    {currentStep}/{STEPS.length - 1} 단계
                   </p>
                 </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-primary">{Math.round(progress)}%</p>
-                </div>
               </div>
-              <Progress value={progress} className="h-2" />
               
               {/* Step Indicators */}
               <div className="flex justify-between pt-2">
@@ -137,11 +133,12 @@ const Dashboard = () => {
           <CardHeader>
             <CardTitle className="text-xl">{STEPS[currentStep].label}</CardTitle>
             <CardDescription>
-              {currentStep === 1 && "발표 진행을 위해 동의서를 작성해주세요"}
-              {currentStep === 2 && "발표 자료를 업로드해주세요"}
-              {currentStep === 3 && "발표 관련 정보를 입력해주세요"}
-              {currentStep === 4 && "강연료 지급을 위한 정보를 입력해주세요"}
-              {currentStep === 5 && "현장 도착 안내를 확인해주세요"}
+              {currentStep === 1 && "발표자 소개에 사용될 프로필 정보를 등록해주세요"}
+              {currentStep === 2 && "강연료 지급을 위한 정보와 서류를 제출해주세요"}
+              {currentStep === 3 && "발표 자료를 업로드해주세요"}
+              {currentStep === 4 && "발표 관련 정보를 확인해주세요"}
+              {currentStep === 5 && "발표 진행을 위해 동의서를 작성해주세요"}
+              {currentStep === 6 && "현장 도착 안내를 확인해주세요"}
             </CardDescription>
           </CardHeader>
           <CardContent>
