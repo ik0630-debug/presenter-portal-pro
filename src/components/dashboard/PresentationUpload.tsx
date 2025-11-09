@@ -4,22 +4,36 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, File, X, Calendar, Plus, Loader2 } from "lucide-react";
+import { Upload, File, X, Calendar, Plus, Loader2, Trash2, Star, Download } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 interface UploadedFile {
-  file: File;
+  file?: File; // 새로 선택한 파일
   uploadDate: string;
   isSelected: boolean;
   id?: string; // DB에서 로드된 파일의 경우
   filePath?: string; // Storage 경로
+  fileName?: string; // DB의 파일명
+  fileSize?: number; // DB의 파일 크기
+  isPrimary?: boolean; // 우선 송출 파일 여부
+}
+
+interface SavedFile {
+  id: string;
+  file_name: string;
+  file_path: string;
+  file_size: number;
+  uploaded_at: string;
+  is_primary: boolean;
 }
 
 const PresentationUpload = () => {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [savedFiles, setSavedFiles] = useState<SavedFile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string>("");
   const deadline = "2024-12-31 23:59";
   
@@ -112,9 +126,8 @@ const PresentationUpload = () => {
 
       if (filesError) {
         console.error('Files error:', filesError);
-      } else if (files && files.length > 0) {
-        // TODO: Storage에서 실제 파일을 다운로드하거나 참조를 표시
-        toast.info(`${files.length}개의 업로드된 파일이 있습니다.`);
+      } else if (files) {
+        setSavedFiles(files as SavedFile[]);
       }
     } catch (error) {
       console.error('Load error:', error);
@@ -136,7 +149,7 @@ const PresentationUpload = () => {
       const newFile: UploadedFile = {
         file,
         uploadDate: new Date().toLocaleString("ko-KR"),
-        isSelected: uploadedFiles.length === 0, // 첫 파일은 자동으로 선택
+        isSelected: savedFiles.length === 0 && uploadedFiles.length === 0, // 첫 파일은 자동으로 선택
       };
       
       setUploadedFiles([...uploadedFiles, newFile]);
@@ -162,7 +175,7 @@ const PresentationUpload = () => {
       // 각 파일을 Storage에 업로드하고 DB에 저장
       for (let i = 0; i < uploadedFiles.length; i++) {
         const uploadedFile = uploadedFiles[i];
-        if (uploadedFile.id) continue; // 이미 업로드된 파일은 건너뛰기
+        if (!uploadedFile.file) continue; // 파일이 없으면 건너뛰기
 
         const file = uploadedFile.file;
         const fileExt = file.name.split('.').pop();
@@ -222,8 +235,121 @@ const PresentationUpload = () => {
 
   const handleRemove = (index: number) => {
     const newFiles = uploadedFiles.filter((_, i) => i !== index);
+    // 첫 번째 파일이 삭제되었고 남은 파일이 있으면 새로운 첫 번째 파일을 선택
+    if (uploadedFiles[index].isSelected && newFiles.length > 0) {
+      newFiles[0].isSelected = true;
+    }
     setUploadedFiles(newFiles);
     toast.info("파일이 제거되었습니다.");
+  };
+
+  const handleDeleteSavedFile = async (file: SavedFile) => {
+    if (!confirm(`'${file.file_name}' 파일을 삭제하시겠습니까?`)) {
+      return;
+    }
+
+    setDeletingId(file.id);
+    try {
+      // Storage에서 파일 삭제
+      const { error: storageError } = await supabase.storage
+        .from('presentations')
+        .remove([file.file_path]);
+
+      if (storageError) {
+        console.error('Storage delete error:', storageError);
+        toast.error("파일 삭제에 실패했습니다.");
+        return;
+      }
+
+      // DB에서 파일 정보 삭제
+      const { error: dbError } = await supabase
+        .from('presentation_files')
+        .delete()
+        .eq('id', file.id);
+
+      if (dbError) {
+        console.error('DB delete error:', dbError);
+        toast.error("파일 정보 삭제에 실패했습니다.");
+        return;
+      }
+
+      // 로컬 상태 업데이트
+      setSavedFiles(savedFiles.filter(f => f.id !== file.id));
+      toast.success("파일이 삭제되었습니다.");
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast.error("파일 삭제 중 오류가 발생했습니다.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleTogglePrimary = async (file: SavedFile) => {
+    try {
+      // 모든 파일의 is_primary를 false로 설정
+      const { error: resetError } = await supabase
+        .from('presentation_files')
+        .update({ is_primary: false })
+        .eq('session_id', sessionId);
+
+      if (resetError) {
+        console.error('Reset error:', resetError);
+        toast.error("우선 송출 파일 설정에 실패했습니다.");
+        return;
+      }
+
+      // 선택한 파일을 is_primary = true로 설정
+      const { error: updateError } = await supabase
+        .from('presentation_files')
+        .update({ is_primary: true })
+        .eq('id', file.id);
+
+      if (updateError) {
+        console.error('Update error:', updateError);
+        toast.error("우선 송출 파일 설정에 실패했습니다.");
+        return;
+      }
+
+      // 로컬 상태 업데이트
+      setSavedFiles(savedFiles.map(f => ({
+        ...f,
+        is_primary: f.id === file.id,
+      })));
+
+      toast.success("우선 송출 파일이 변경되었습니다.");
+    } catch (error) {
+      console.error('Toggle primary error:', error);
+      toast.error("우선 송출 파일 설정 중 오류가 발생했습니다.");
+    }
+  };
+
+  const handleDownloadFile = async (file: SavedFile) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('presentations')
+        .download(file.file_path);
+
+      if (error) {
+        console.error('Download error:', error);
+        toast.error("파일 다운로드에 실패했습니다.");
+        return;
+      }
+
+      // Blob을 URL로 변환하여 다운로드
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.file_name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success("파일 다운로드가 완료되었습니다.");
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error("파일 다운로드 중 오류가 발생했습니다.");
+    }
   };
 
   const handleToggleSelection = (index: number) => {
@@ -316,6 +442,65 @@ const PresentationUpload = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* 업로드된 파일 목록 */}
+          {savedFiles.length > 0 && (
+            <div className="space-y-3">
+              <Label className="text-sm font-semibold">업로드된 파일</Label>
+              {savedFiles.map((file) => (
+                <div key={file.id} className="flex items-center gap-3 p-4 border rounded-lg bg-muted/30">
+                  <Checkbox
+                    checked={file.is_primary}
+                    onCheckedChange={() => handleTogglePrimary(file)}
+                    className="mt-1"
+                  />
+                  <div className="flex items-center gap-3 flex-1">
+                    <File className="h-8 w-8 text-primary shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{file.file_name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {(file.file_size / (1024 * 1024)).toFixed(2)} MB
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        업로드: {new Date(file.uploaded_at).toLocaleString('ko-KR')}
+                      </p>
+                      {file.is_primary && (
+                        <p className="text-xs text-destructive font-medium mt-1 flex items-center gap-1">
+                          <Star className="h-3 w-3 fill-current" />
+                          우선 송출 파일
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDownloadFile(file)}
+                      title="다운로드"
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDeleteSavedFile(file)}
+                      className="text-destructive hover:text-destructive"
+                      disabled={deletingId === file.id}
+                      title="삭제"
+                    >
+                      {deletingId === file.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* 새 파일 선택 영역 */}
           {uploadedFiles.length === 0 ? (
             <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
               <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
@@ -337,6 +522,7 @@ const PresentationUpload = () => {
             </div>
           ) : (
             <div className="space-y-4">
+              <Label className="text-sm font-semibold">선택한 파일 (업로드 대기 중)</Label>
               {uploadedFiles.map((uploadedFile, index) => (
                 <div key={index} className="flex items-center gap-3 p-4 border rounded-lg bg-primary/5">
                   <Checkbox
@@ -347,9 +533,9 @@ const PresentationUpload = () => {
                   <div className="flex items-center gap-3 flex-1">
                     <File className="h-8 w-8 text-primary shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{uploadedFile.file.name}</p>
+                      <p className="font-medium truncate">{uploadedFile.file?.name}</p>
                       <p className="text-sm text-muted-foreground">
-                        {(uploadedFile.file.size / (1024 * 1024)).toFixed(2)} MB
+                        {uploadedFile.file ? (uploadedFile.file.size / (1024 * 1024)).toFixed(2) : 0} MB
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
                         업로드: {uploadedFile.uploadDate}
@@ -404,7 +590,12 @@ const PresentationUpload = () => {
 
           <div className="text-sm text-muted-foreground space-y-1">
             <p>• 마감 시간까지 자유롭게 수정 가능합니다</p>
-            <p>• 여러 파일을 업로드한 경우 체크박스로 송출할 파일을 선택해주세요</p>
+            {savedFiles.length > 0 && (
+              <p>• 체크박스로 우선 송출할 파일을 선택할 수 있습니다</p>
+            )}
+            {uploadedFiles.length > 0 && (
+              <p>• 여러 파일을 선택한 경우 체크박스로 송출할 파일을 지정하세요</p>
+            )}
             <p>• 최대 파일 크기: 100MB</p>
           </div>
         </CardContent>
