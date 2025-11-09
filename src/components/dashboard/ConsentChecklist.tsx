@@ -1,36 +1,36 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, CheckCircle2, X } from "lucide-react";
+import SignatureCanvas from "react-signature-canvas";
+
+interface ConsentItem {
+  id: string;
+  title: string;
+  content: string;
+  required: boolean;
+}
 
 const ConsentChecklist = () => {
-  const [consents, setConsents] = useState({
-    copyright: false,
-    portraitRights: false,
-    recording: false,
-    materials: false,
+  const [consents, setConsents] = useState<Record<string, boolean | null>>({
+    copyright: null,
+    portraitRights: null,
+    recording: null,
+    materials: null,
   });
+  
+  const [isSignatureOpen, setIsSignatureOpen] = useState(false);
+  const signaturePadRef = useRef<SignatureCanvas>(null);
 
-  const allConsented = Object.values(consents).every((value) => value);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!allConsented) {
-      toast.error("모든 항목에 동의해주세요.");
-      return;
-    }
-    // TODO: 서버에 동의 정보 저장
-    toast.success("동의가 완료되었습니다.");
-  };
-
-  const consentItems = [
+  const consentItems: ConsentItem[] = [
     {
       id: "copyright",
       title: "저작권 사용 동의",
+      required: true,
       content: `본인은 금번 발표자료에 대한 저작권을 주최측에 제공하며, 주최측이 다음의 목적으로 사용하는 것에 동의합니다:
 
 1. 행사 기록 및 홍보물 제작
@@ -43,6 +43,7 @@ const ConsentChecklist = () => {
     {
       id: "portraitRights",
       title: "초상권 사용 동의",
+      required: true,
       content: `본인은 행사 진행 중 촬영된 사진 및 영상에 대한 초상권을 다음과 같이 제공합니다:
 
 1. 행사 홍보물 및 리포트 제작
@@ -55,6 +56,7 @@ const ConsentChecklist = () => {
     {
       id: "recording",
       title: "발표 녹음/녹화 동의",
+      required: true,
       content: `본인은 발표 내용의 녹음 및 녹화에 동의하며, 해당 자료의 활용에 대해 다음과 같이 허락합니다:
 
 1. 행사 참가자에게 다시보기 서비스 제공
@@ -67,6 +69,7 @@ const ConsentChecklist = () => {
     {
       id: "materials",
       title: "자료 배포 동의",
+      required: false,
       content: `본인은 제출한 발표자료가 행사 참가자들에게 배포되는 것에 동의합니다:
 
 1. 행사 참가자에게 PDF 파일 형태로 배포
@@ -78,63 +81,154 @@ const ConsentChecklist = () => {
     },
   ];
 
+  const allRequiredConsented = consentItems
+    .filter(item => item.required)
+    .every(item => consents[item.id] === true);
+
+  const handleConsentChange = (id: string, value: boolean) => {
+    setConsents(prev => ({ ...prev, [id]: value }));
+  };
+
+  const handleComplete = () => {
+    if (!allRequiredConsented) {
+      toast.error("필수 동의 항목을 모두 동의해주세요.");
+      return;
+    }
+    setIsSignatureOpen(true);
+  };
+
+  const clearSignature = () => {
+    signaturePadRef.current?.clear();
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (signaturePadRef.current?.isEmpty()) {
+      toast.error("서명을 작성해주세요.");
+      return;
+    }
+
+    // TODO: 서버에 동의 정보 및 서명 저장
+    const signatureData = signaturePadRef.current?.toDataURL();
+    console.log("Signature data:", signatureData);
+    console.log("Consents:", consents);
+    
+    toast.success("동의가 완료되었습니다.");
+    setIsSignatureOpen(false);
+  };
+
+
   return (
-    <Card>
-      <CardContent className="pt-6">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <Accordion type="single" collapsible className="w-full">
-            {consentItems.map((item) => (
-              <AccordionItem key={item.id} value={item.id}>
-                <AccordionTrigger className="hover:no-underline">
-                  <div className="flex items-center gap-3">
-                    <Checkbox
-                      id={item.id}
-                      checked={consents[item.id as keyof typeof consents]}
-                      onCheckedChange={(checked) =>
-                        setConsents({
-                          ...consents,
-                          [item.id]: checked as boolean,
-                        })
-                      }
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                    <Label
-                      htmlFor={item.id}
-                      className="text-base font-medium cursor-pointer"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {item.title}
-                    </Label>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <div className="pl-9 pr-4 py-3 bg-muted/50 rounded-lg">
-                    <pre className="text-sm whitespace-pre-wrap font-sans text-muted-foreground">
-                      {item.content}
-                    </pre>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
+    <>
+      <Card>
+        <CardContent className="pt-6">
+          <div className="space-y-6">
+            <Accordion type="single" collapsible className="w-full">
+              {consentItems.map((item) => (
+                <AccordionItem key={item.id} value={item.id}>
+                  <AccordionTrigger className="hover:no-underline">
+                    <div className="flex items-center gap-2 text-left">
+                      <span className="font-medium">{item.title}</span>
+                      <span className={`text-sm ${item.required ? 'text-destructive' : 'text-muted-foreground'}`}>
+                        ({item.required ? '필수' : '선택'})
+                      </span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="space-y-4 pt-2">
+                      <div className="pl-4 pr-4 py-3 bg-muted/50 rounded-lg">
+                        <pre className="text-sm whitespace-pre-wrap font-sans text-muted-foreground">
+                          {item.content}
+                        </pre>
+                      </div>
+                      <div className="flex gap-2 justify-end">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleConsentChange(item.id, false)}
+                          className={consents[item.id] === false ? 'border-destructive text-destructive' : ''}
+                        >
+                          동의하지 않습니다
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => handleConsentChange(item.id, true)}
+                          className={consents[item.id] === true ? 'bg-primary' : 'bg-muted text-muted-foreground hover:bg-primary hover:text-primary-foreground'}
+                        >
+                          {consents[item.id] === true && <CheckCircle2 className="h-4 w-4 mr-1" />}
+                          동의합니다
+                        </Button>
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
 
-          {!allConsented && (
-            <div className="flex items-center gap-2 p-3 bg-destructive/10 text-destructive rounded-lg text-sm">
-              <AlertCircle className="h-4 w-4 flex-shrink-0" />
-              <p>발표 진행을 위해 모든 항목에 동의가 필요합니다.</p>
+            {!allRequiredConsented && (
+              <div className="flex items-center gap-2 p-3 bg-destructive/10 text-destructive rounded-lg text-sm">
+                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                <p>발표 진행을 위해 필수 동의 항목에 모두 동의가 필요합니다.</p>
+              </div>
+            )}
+
+            <Button 
+              type="button" 
+              className="w-full" 
+              disabled={!allRequiredConsented}
+              onClick={handleComplete}
+            >
+              동의 완료
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Dialog open={isSignatureOpen} onOpenChange={setIsSignatureOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between">
+              서명
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsSignatureOpen(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </DialogTitle>
+            <DialogDescription>
+              아래 박스에 서명해주세요
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="border-2 border-dashed rounded-lg overflow-hidden">
+              <SignatureCanvas
+                ref={signaturePadRef}
+                canvasProps={{
+                  className: "w-full h-48 bg-white",
+                }}
+                backgroundColor="white"
+              />
             </div>
-          )}
-
-          <Button type="submit" className="w-full" disabled={!allConsented}>
-            동의 완료
-          </Button>
-
-          <p className="text-xs text-muted-foreground text-center">
-            동의 후에도 주최측에 문의하여 철회할 수 있습니다.
-          </p>
-        </form>
-      </CardContent>
-    </Card>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={clearSignature}
+                className="flex-1"
+              >
+                지우기
+              </Button>
+              <Button type="submit" className="flex-1">
+                확인
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 
