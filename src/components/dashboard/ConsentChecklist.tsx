@@ -19,6 +19,7 @@ interface ConsentItem {
 const ConsentChecklist = () => {
   const [consents, setConsents] = useState<Record<string, boolean | null>>({});
   const [consentItems, setConsentItems] = useState<ConsentItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
   const [isSignatureOpen, setIsSignatureOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -31,6 +32,7 @@ const ConsentChecklist = () => {
   }, []);
 
   const loadSessionData = async () => {
+    setIsLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user?.email) {
@@ -165,6 +167,8 @@ const ConsentChecklist = () => {
       }
     } catch (error) {
       console.error('Load error:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -267,6 +271,26 @@ const ConsentChecklist = () => {
     }
   };
 
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="pt-6 flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (consentItems.length === 0) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <p className="text-center text-muted-foreground">동의서 항목이 없습니다.</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <>
