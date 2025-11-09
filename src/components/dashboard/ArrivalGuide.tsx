@@ -72,21 +72,21 @@ const ArrivalGuide = () => {
   });
 
   const arrivalData = {
-    eventName: session?.event_name || "",
-    venue: guideSettings?.venue_name || "",
-    address: guideSettings?.venue_address || "",
-    room: guideSettings?.presentation_room || "",
-    time: guideSettings?.presentation_time || "",
-    checkInTime: guideSettings?.check_in_time || "",
-    checkInLocation: guideSettings?.check_in_location || "",
-    parking: guideSettings?.parking_info || "",
+    eventName: session?.event_name || "2024 AI 컨퍼런스",
+    venue: guideSettings?.venue_name || "서울 코엑스",
+    address: guideSettings?.venue_address || "서울특별시 강남구 영동대로 513",
+    room: guideSettings?.presentation_room || "그랜드볼룸 A홀",
+    time: guideSettings?.presentation_time || "2024년 12월 15일 (금) 14:00 - 15:30",
+    checkInTime: guideSettings?.check_in_time || "13:30까지",
+    checkInLocation: guideSettings?.check_in_location || "2층 리셉션 데스크",
+    parking: guideSettings?.parking_info || "지하 2-3층 주차장 이용 가능\n발표자 주차권은 리셉션 데스크에서 수령 가능합니다.\n주차장 만차 시 인근 공영주차장을 이용해주세요.",
     contact: {
-      name: guideSettings?.contact_name || "",
-      phone: guideSettings?.contact_phone || "",
-      email: guideSettings?.contact_email || "",
+      name: guideSettings?.contact_name || "김행사 담당자",
+      phone: guideSettings?.contact_phone || "010-1234-5678",
+      email: guideSettings?.contact_email || "event@example.com",
     },
-    emergency: guideSettings?.emergency_contact || "",
-    notes: guideSettings?.additional_notes || "",
+    emergency: guideSettings?.emergency_contact || "긴급 상황 시: 010-9999-8888 (24시간 운영)",
+    notes: guideSettings?.additional_notes || "• 발표 30분 전까지 현장 도착 부탁드립니다.\n• 발표 자료는 USB 또는 노트북으로 준비해주세요.\n• 현장에서 간단한 리허설이 가능합니다.\n• 물과 다과가 준비되어 있습니다.",
   };
 
   // Load checklist items
@@ -96,7 +96,38 @@ const ArrivalGuide = () => {
     orderBy: { column: 'display_order' },
     enabled: !!projectId,
     onSuccess: async (items) => {
-      if (!sessionId || !items?.length) return;
+      if (!sessionId || !items?.length) {
+        // 샘플 데이터 설정
+        setChecklistItems([
+          {
+            id: 'sample-1',
+            item_text: '발표 자료를 USB 또는 노트북에 준비했습니다.',
+            requires_response: false,
+            is_checked: false,
+          },
+          {
+            id: 'sample-2',
+            item_text: '현장 주차 또는 대중교통 경로를 확인했습니다.',
+            requires_response: false,
+            is_checked: false,
+          },
+          {
+            id: 'sample-3',
+            item_text: '특별히 필요한 장비나 요청사항이 있으신가요?',
+            requires_response: true,
+            is_checked: false,
+            response_text: '',
+          },
+          {
+            id: 'sample-4',
+            item_text: '식이 제한이나 알러지가 있으신가요?',
+            requires_response: true,
+            is_checked: false,
+            response_text: '',
+          },
+        ]);
+        return;
+      }
 
       try {
         // Load speaker responses
