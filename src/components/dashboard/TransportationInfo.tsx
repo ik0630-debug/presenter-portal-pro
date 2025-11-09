@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,16 +12,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Car, Train, Plane, Bus, Navigation, Calendar, Upload, FileText, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
-
-interface AttendanceField {
-  id: string;
-  field_key: string;
-  field_label: string;
-  field_description: string;
-  is_required: boolean;
-  display_order: number;
-  deadline: string | null;
-}
+import { useSession } from "@/hooks/useSession";
+import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
+import { 
+  AttendanceField, 
+  TransportationSettings, 
+  TransportationInfo as TransportationInfoType 
+} from "@/types/database";
 
 const TRANSPORTATION_METHODS = [
   { value: '대중교통', label: '대중교통', icon: Bus },
@@ -32,154 +29,75 @@ const TRANSPORTATION_METHODS = [
 ];
 
 const TransportationInfo = () => {
-  const [isLoading, setIsLoading] = useState(true);
+  const { session, sessionId, projectId, loading: sessionLoading } = useSession();
   const [isSaving, setIsSaving] = useState(false);
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [projectId, setProjectId] = useState<string | null>(null);
-  const [attendanceFields, setAttendanceFields] = useState<AttendanceField[]>([]);
   const [attendanceResponses, setAttendanceResponses] = useState<Record<string, boolean>>({});
-  const [supportedMethods, setSupportedMethods] = useState<string[]>([]);
-  const [requiresReceipt, setRequiresReceipt] = useState(false);
-  const [receiptDeadline, setReceiptDeadline] = useState<string | null>(null);
-  const [additionalNotes, setAdditionalNotes] = useState<string | null>(null);
   const [receiptFiles, setReceiptFiles] = useState<File[]>([]);
   
-  const [formData, setFormData] = useState({
-    transportation_method: '대중교통',
-    departure_location: '',
-    departure_date: '',
-    departure_time: '',
-    arrival_location: '',
-    arrival_date: '',
-    arrival_time: '',
-    vehicle_type: '',
-    vehicle_number: '',
-    train_number: '',
-    seat_number: '',
-    flight_number: '',
-    airline: '',
-    requires_reimbursement: false,
-    estimated_cost: '',
-    actual_cost: '',
-    receipt_submitted: false,
-    notes: '',
-    receipt_file_path: '',
+  // Load attendance fields
+  const { data: attendanceFields = [] } = useSupabaseQuery<AttendanceField[]>({
+    table: 'attendance_fields',
+    filters: { project_id: projectId },
+    orderBy: { column: 'display_order' },
+    enabled: !!projectId,
   });
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    try {
-      const speakerSession = localStorage.getItem("speakerSession");
-      if (!speakerSession) {
-        setIsLoading(false);
-        return;
-      }
-
-      const session = JSON.parse(speakerSession);
-      setSessionId(session.id);
-      setProjectId(session.project_id);
-
-      // Load attendance fields and responses
-      await loadAttendanceData(session.id, session.project_id);
-
-      // Load transportation settings
-      await loadTransportationSettings(session.project_id);
-
-      // Load transportation info
-      const { data, error } = await supabase
-        .from('transportation_info' as any)
-        .select('*')
-        .eq('session_id', session.id)
-        .maybeSingle();
-
-      if (error && error.code !== 'PGRST116') throw error;
-
-      if (data) {
-        const transportInfo = data as any;
-        setFormData({
-          transportation_method: transportInfo.transportation_method || '대중교통',
-          departure_location: transportInfo.departure_location || '',
-          departure_date: transportInfo.departure_date || '',
-          departure_time: transportInfo.departure_time || '',
-          arrival_location: transportInfo.arrival_location || '',
-          arrival_date: transportInfo.arrival_date || '',
-          arrival_time: transportInfo.arrival_time || '',
-          vehicle_type: transportInfo.vehicle_type || '',
-          vehicle_number: transportInfo.vehicle_number || '',
-          train_number: transportInfo.train_number || '',
-          seat_number: transportInfo.seat_number || '',
-          flight_number: transportInfo.flight_number || '',
-          airline: transportInfo.airline || '',
-          requires_reimbursement: transportInfo.requires_reimbursement || false,
-          estimated_cost: transportInfo.estimated_cost?.toString() || '',
-          actual_cost: transportInfo.actual_cost?.toString() || '',
-          receipt_submitted: transportInfo.receipt_submitted || false,
-          notes: transportInfo.notes || '',
-          receipt_file_path: transportInfo.receipt_file_path || '',
-        });
-      }
-    } catch (error: any) {
-      console.error(error);
-      toast.error("데이터를 불러오는데 실패했습니다.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loadAttendanceData = async (sessionId: string, projectId: string) => {
-    try {
-      const { data: fields, error: fieldsError } = await supabase
-        .from('attendance_fields' as any)
-        .select('*')
-        .eq('project_id', projectId)
-        .order('display_order');
-
-      if (fieldsError) throw fieldsError;
-      setAttendanceFields((fields as any) || []);
-
-      const { data: responses, error: responsesError } = await supabase
-        .from('attendance_responses' as any)
-        .select('*')
-        .eq('session_id', sessionId);
-
-      if (responsesError) throw responsesError;
-
+  // Load attendance responses
+  const { data: responses, refetch: refetchResponses } = useSupabaseQuery<any[]>({
+    table: 'attendance_responses',
+    filters: { session_id: sessionId },
+    enabled: !!sessionId,
+    onSuccess: (data) => {
       const responsesMap: Record<string, boolean> = {};
-      responses?.forEach((r: any) => {
+      data?.forEach((r: any) => {
         responsesMap[r.field_key] = r.response;
       });
       setAttendanceResponses(responsesMap);
-    } catch (error: any) {
-      console.error('Error loading attendance data:', error);
-    }
-  };
+    },
+  });
 
-  const loadTransportationSettings = async (projectId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('transportation_settings' as any)
-        .select('*')
-        .eq('project_id', projectId)
-        .maybeSingle();
+  // Load transportation settings
+  const { data: transportSettings } = useSupabaseQuery<TransportationSettings>({
+    table: 'transportation_settings',
+    filters: { project_id: projectId },
+    single: true,
+    enabled: !!projectId,
+  });
 
-      if (error && error.code !== 'PGRST116') throw error;
+  const supportedMethods = transportSettings?.supported_methods || ['대중교통', '자차', 'KTX', '항공', '기타'];
+  const requiresReceipt = transportSettings?.requires_receipt ?? false;
+  const receiptDeadline = transportSettings?.receipt_deadline;
+  const additionalNotes = transportSettings?.additional_notes;
 
-      if (data) {
-        const settings = data as any;
-        setSupportedMethods(settings.supported_methods || ['대중교통', '자차', 'KTX', '항공', '기타']);
-        setRequiresReceipt(settings.requires_receipt ?? false);
-        setReceiptDeadline(settings.receipt_deadline);
-        setAdditionalNotes(settings.additional_notes);
-      } else {
-        setSupportedMethods(['대중교통', '자차', 'KTX', '항공', '기타']);
-      }
-    } catch (error: any) {
-      console.error('Error loading transportation settings:', error);
-    }
-  };
+  // Load transportation info
+  const { data: existingTransportInfo } = useSupabaseQuery<TransportationInfoType>({
+    table: 'transportation_info',
+    filters: { session_id: sessionId },
+    single: true,
+    enabled: !!sessionId,
+  });
+
+  const [formData, setFormData] = useState({
+    transportation_method: existingTransportInfo?.transportation_method || '대중교통',
+    departure_location: existingTransportInfo?.departure_location || '',
+    departure_date: existingTransportInfo?.departure_date || '',
+    departure_time: existingTransportInfo?.departure_time || '',
+    arrival_location: existingTransportInfo?.arrival_location || '',
+    arrival_date: existingTransportInfo?.arrival_date || '',
+    arrival_time: existingTransportInfo?.arrival_time || '',
+    vehicle_type: existingTransportInfo?.vehicle_type || '',
+    vehicle_number: existingTransportInfo?.vehicle_number || '',
+    train_number: existingTransportInfo?.train_number || '',
+    seat_number: existingTransportInfo?.seat_number || '',
+    flight_number: existingTransportInfo?.flight_number || '',
+    airline: existingTransportInfo?.airline || '',
+    requires_reimbursement: existingTransportInfo?.requires_reimbursement || false,
+    estimated_cost: existingTransportInfo?.estimated_cost?.toString() || '',
+    actual_cost: existingTransportInfo?.actual_cost?.toString() || '',
+    receipt_submitted: existingTransportInfo?.receipt_submitted || false,
+    notes: existingTransportInfo?.notes || '',
+    receipt_file_path: existingTransportInfo?.receipt_file_path || '',
+  });
 
   const handleAttendanceChange = async (fieldKey: string, checked: boolean) => {
     if (!sessionId) return;
@@ -201,6 +119,7 @@ const TransportationInfo = () => {
       }));
 
       toast.success("참석 정보가 저장되었습니다.");
+      await refetchResponses();
     } catch (error: any) {
       console.error('Error saving attendance response:', error);
       toast.error("참석 정보 저장 중 오류가 발생했습니다.");
@@ -292,10 +211,18 @@ const TransportationInfo = () => {
     }
   };
 
-  if (isLoading) {
+  if (sessionLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <p className="text-muted-foreground">세션 정보를 찾을 수 없습니다.</p>
       </div>
     );
   }
