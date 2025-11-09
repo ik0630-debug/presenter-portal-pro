@@ -19,56 +19,44 @@ const AdminLogin = () => {
     setIsLoading(true);
 
     try {
-      // First, try to verify admin from external DB
+      // Try to verify admin from external DB
       const { data: verifyData, error: verifyError } = await supabase.functions.invoke('verify-admin', {
         body: { email, password },
       });
 
-      if (verifyError || !verifyData?.success) {
-        // If external verification fails, try local login
-        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+      if (verifyError) {
+        throw new Error(verifyError.message || '인증 중 오류가 발생했습니다.');
+      }
 
-        if (authError) throw authError;
+      if (!verifyData?.success) {
+        throw new Error(verifyData?.error || '인증에 실패했습니다.');
+      }
 
-        // Check if user is admin
-        const { data: adminData, error: adminError } = await supabase
-          .from('admin_users')
-          .select('*')
-          .eq('user_id', authData.user.id)
-          .single();
-
-        if (adminError || !adminData) {
-          await supabase.auth.signOut();
-          toast.error("관리자 권한이 없습니다.");
-          setIsLoading(false);
-          return;
-        }
-
-        toast.success("로그인 성공!");
-        navigate("/admin/dashboard");
-      } else {
-        // External admin verified, now sign in locally
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password: verifyData.session.hashed_token || password,
-        });
-
-        if (signInError) {
-          // If local sign in fails, it means user was just created, use magic link
-          const { error: setSessionError } = await supabase.auth.setSession({
-            access_token: verifyData.session.properties.access_token,
-            refresh_token: verifyData.session.properties.refresh_token,
+      // Use the magic link to sign in
+      if (verifyData.magicLink) {
+        // Extract token from magic link
+        const url = new URL(verifyData.magicLink);
+        const token = url.searchParams.get('token');
+        const type = url.searchParams.get('type');
+        
+        if (token && type) {
+          const { error: verifyTokenError } = await supabase.auth.verifyOtp({
+            token_hash: token,
+            type: type as any,
           });
 
-          if (setSessionError) throw setSessionError;
-        }
+          if (verifyTokenError) {
+            console.error('Token verification error:', verifyTokenError);
+            throw new Error('인증 토큰 검증 실패');
+          }
 
-        toast.success(`${verifyData.user.role === 'super_admin' ? 'Master' : 'Admin'} 로그인 성공!`);
-        navigate("/admin/dashboard");
+          toast.success(`${verifyData.user.role === 'super_admin' ? 'Master' : 'Admin'} 로그인 성공!`);
+          navigate("/admin/dashboard");
+          return;
+        }
       }
+
+      throw new Error('인증 정보가 올바르지 않습니다.');
     } catch (error: any) {
       console.error('Login error:', error);
       toast.error(error.message || "로그인 중 오류가 발생했습니다.");

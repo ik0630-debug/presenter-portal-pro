@@ -62,32 +62,46 @@ Deno.serve(async (req) => {
     // Get current Supabase instance
     const localSupabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
     );
 
-    // Create or update user in local auth
-    const { data: localAuthData, error: localAuthError } = await localSupabase.auth.admin.createUser({
-      email: authData.user.email!,
-      email_confirm: true,
-      user_metadata: {
-        external_user_id: authData.user.id,
-        role: userData.role,
-      },
-    });
+    // Check if user already exists in local DB
+    const { data: existingUsers } = await localSupabase.auth.admin.listUsers();
+    let localUser = existingUsers?.users.find(u => u.email === email);
 
-    // If user already exists, try to get them
-    let localUserId = localAuthData?.user?.id;
-    if (localAuthError && localAuthError.message.includes('already registered')) {
-      const { data: existingUser } = await localSupabase.auth.admin.listUsers();
-      const user = existingUser?.users.find(u => u.email === email);
-      if (user) {
-        localUserId = user.id;
+    if (!localUser) {
+      // Create user with a random password (won't be used directly)
+      const randomPassword = crypto.randomUUID();
+      const { data: newUser, error: createError } = await localSupabase.auth.admin.createUser({
+        email: authData.user.email!,
+        password: randomPassword,
+        email_confirm: true,
+        user_metadata: {
+          external_user_id: authData.user.id,
+          role: userData.role,
+        },
+      });
+
+      if (createError) {
+        console.error('Local user creation error:', createError);
+        return new Response(
+          JSON.stringify({ error: '로컬 사용자 생성 실패: ' + createError.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
+
+      localUser = newUser.user;
     }
 
-    if (!localUserId) {
+    if (!localUser) {
       return new Response(
-        JSON.stringify({ error: '로컬 사용자 생성 실패' }),
+        JSON.stringify({ error: '사용자 정보를 찾을 수 없습니다.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -97,7 +111,7 @@ Deno.serve(async (req) => {
     const { error: adminError } = await localSupabase
       .from('admin_users')
       .upsert({
-        user_id: localUserId,
+        user_id: localUser.id,
         email: authData.user.email!,
         role: adminRole,
       }, {
@@ -108,15 +122,16 @@ Deno.serve(async (req) => {
       console.error('Admin user sync error:', adminError);
     }
 
-    // Generate session for local Supabase
-    const { data: sessionData, error: sessionError } = await localSupabase.auth.admin.generateLink({
+    // Generate access token for the user
+    const { data: tokenData, error: tokenError } = await localSupabase.auth.admin.generateLink({
       type: 'magiclink',
       email: authData.user.email!,
     });
 
-    if (sessionError || !sessionData) {
+    if (tokenError || !tokenData) {
+      console.error('Token generation error:', tokenError);
       return new Response(
-        JSON.stringify({ error: '세션 생성 실패' }),
+        JSON.stringify({ error: '인증 토큰 생성 실패' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -125,11 +140,11 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         user: {
-          id: localUserId,
+          id: localUser.id,
           email: authData.user.email,
           role: adminRole,
         },
-        session: sessionData,
+        magicLink: tokenData.properties.action_link,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
