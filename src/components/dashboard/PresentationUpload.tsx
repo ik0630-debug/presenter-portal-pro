@@ -87,6 +87,7 @@ const PresentationUpload = () => {
           <CardDescription className="space-y-2">
             <p>• PPT 등의 파일을 이용하시는 경우, 폰트깨짐 등의 상황에 대비하여 PDF 파일을 함께 업로드 해주시기 바랍니다.</p>
             <p>• 맥(MAC)을 사용하시는 경우 발표자료는 PDF로 업로드 해 주시기 바라며, 현장에 개인 맥북을 지참해 주시기 바랍니다.</p>
+            <p>• 여러 파일을 업로드 하시는 경우 우선적으로 송출할 파일을 선택해 주시기 바랍니다.</p>
             <p>• 지원 형식: PPT(PPTX), PDF, DOC(DOCX), HWP(HWPX), ZIP (최대 100MB)</p>
           </CardDescription>
         </CardHeader>
@@ -130,8 +131,8 @@ const PresentationUpload = () => {
                         업로드: {uploadedFile.uploadDate}
                       </p>
                       {uploadedFile.isSelected && (
-                        <p className="text-xs text-primary font-medium mt-1">
-                          송출 선택됨
+                        <p className="text-xs text-destructive font-medium mt-1">
+                          우선 송출 파일
                         </p>
                       )}
                     </div>
