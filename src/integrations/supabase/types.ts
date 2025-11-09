@@ -101,6 +101,72 @@ export type Database = {
         }
         Relationships: []
       }
+      attendance_fields: {
+        Row: {
+          created_at: string
+          deadline: string | null
+          display_order: number | null
+          field_description: string
+          field_key: string
+          field_label: string
+          id: string
+          is_required: boolean
+          project_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          deadline?: string | null
+          display_order?: number | null
+          field_description: string
+          field_key: string
+          field_label: string
+          id?: string
+          is_required?: boolean
+          project_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          deadline?: string | null
+          display_order?: number | null
+          field_description?: string
+          field_key?: string
+          field_label?: string
+          id?: string
+          is_required?: boolean
+          project_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      attendance_responses: {
+        Row: {
+          created_at: string
+          field_key: string
+          id: string
+          response: boolean
+          session_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          field_key: string
+          id?: string
+          response?: boolean
+          session_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          field_key?: string
+          id?: string
+          response?: boolean
+          session_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       consent_fields: {
         Row: {
           content: string

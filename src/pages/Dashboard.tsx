@@ -17,7 +17,7 @@ const STEPS = [
   { id: 'honorarium', label: '강연료 정보', component: HonorariumInfo },
   { id: 'upload', label: '발표자료', component: PresentationUpload },
   { id: 'consent', label: '동의서', component: ConsentChecklist },
-  { id: 'transportation', label: '교통편', component: TransportationInfo },
+  { id: 'transportation', label: '참석 정보', component: TransportationInfo },
   { id: 'arrival', label: '현장안내', component: ArrivalGuide },
 ];
 
@@ -137,7 +137,7 @@ const Dashboard = () => {
               {currentStep === 2 && "강연료 지급을 위한 정보와 서류를 제출해주세요"}
               {currentStep === 3 && "발표 자료를 업로드하고 발표 관련 정보를 입력해주세요"}
               {currentStep === 4 && "발표 진행을 위해 동의서를 작성해주세요"}
-              {currentStep === 5 && "행사장까지의 교통편 정보를 입력해주세요"}
+              {currentStep === 5 && "행사 참석 정보와 교통편 정보를 입력해주세요"}
               {currentStep === 6 && "현장 도착 안내를 확인해주세요"}
             </CardDescription>
           </CardHeader>

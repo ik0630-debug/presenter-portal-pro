@@ -6,9 +6,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Car, Train, Plane, Bus, Navigation } from "lucide-react";
+import { Car, Train, Plane, Bus, Navigation, Calendar } from "lucide-react";
+import { format } from "date-fns";
+import { ko } from "date-fns/locale";
 
 // Temporary type definitions
 interface TransportationInfo {
@@ -34,6 +37,16 @@ interface TransportationInfo {
   notes: string | null;
 }
 
+interface AttendanceField {
+  id: string;
+  field_key: string;
+  field_label: string;
+  field_description: string;
+  is_required: boolean;
+  display_order: number;
+  deadline: string | null;
+}
+
 const TRANSPORTATION_METHODS = [
   { value: '대중교통', label: '대중교통', icon: Bus },
   { value: '자차', label: '자차', icon: Car },
@@ -46,6 +59,9 @@ const TransportationInfo = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [attendanceFields, setAttendanceFields] = useState<AttendanceField[]>([]);
+  const [attendanceResponses, setAttendanceResponses] = useState<Record<string, boolean>>({});
   
   const [formData, setFormData] = useState({
     transportation_method: '대중교통',
@@ -82,6 +98,10 @@ const TransportationInfo = () => {
 
       const session = JSON.parse(speakerSession);
       setSessionId(session.id);
+      setProjectId(session.project_id);
+
+      // Load attendance fields and responses
+      await loadAttendanceData(session.id, session.project_id);
 
       // Load transportation info
       const { data, error } = await supabase
@@ -120,6 +140,62 @@ const TransportationInfo = () => {
       toast.error("데이터를 불러오는데 실패했습니다.");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadAttendanceData = async (sessionId: string, projectId: string) => {
+    try {
+      // Load attendance fields
+      const { data: fields, error: fieldsError } = await supabase
+        .from('attendance_fields' as any)
+        .select('*')
+        .eq('project_id', projectId)
+        .order('display_order');
+
+      if (fieldsError) throw fieldsError;
+      setAttendanceFields((fields as any) || []);
+
+      // Load existing responses
+      const { data: responses, error: responsesError } = await supabase
+        .from('attendance_responses' as any)
+        .select('*')
+        .eq('session_id', sessionId);
+
+      if (responsesError) throw responsesError;
+
+      const responsesMap: Record<string, boolean> = {};
+      responses?.forEach((r: any) => {
+        responsesMap[r.field_key] = r.response;
+      });
+      setAttendanceResponses(responsesMap);
+    } catch (error: any) {
+      console.error('Error loading attendance data:', error);
+    }
+  };
+
+  const handleAttendanceChange = async (fieldKey: string, checked: boolean) => {
+    if (!sessionId) return;
+
+    try {
+      const { error } = await supabase
+        .from('attendance_responses' as any)
+        .upsert({
+          session_id: sessionId,
+          field_key: fieldKey,
+          response: checked,
+        });
+
+      if (error) throw error;
+
+      setAttendanceResponses(prev => ({
+        ...prev,
+        [fieldKey]: checked,
+      }));
+
+      toast.success("참석 정보가 저장되었습니다.");
+    } catch (error: any) {
+      console.error('Error saving attendance response:', error);
+      toast.error("참석 정보 저장 중 오류가 발생했습니다.");
     }
   };
 
@@ -178,6 +254,63 @@ const TransportationInfo = () => {
 
   return (
     <div className="space-y-6">
+      {/* 행사 참석 정보 섹션 */}
+      {attendanceFields.length > 0 && (
+        <Card className="shadow-elevated">
+          <CardHeader>
+            <CardTitle>행사 참석 정보</CardTitle>
+            <CardDescription>
+              행사 참석과 관련된 정보를 확인하고 응답해 주세요.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {attendanceFields.map((field) => {
+              const isPastDeadline = field.deadline && new Date(field.deadline) < new Date();
+              
+              return (
+                <div key={field.id} className="space-y-3 pb-4 border-b last:border-0 last:pb-0">
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      id={field.field_key}
+                      checked={attendanceResponses[field.field_key] || false}
+                      onCheckedChange={(checked) => 
+                        handleAttendanceChange(field.field_key, checked as boolean)
+                      }
+                      disabled={isPastDeadline}
+                    />
+                    <div className="flex-1 space-y-1">
+                      <Label 
+                        htmlFor={field.field_key}
+                        className={`text-base font-medium cursor-pointer ${isPastDeadline ? 'text-muted-foreground' : ''}`}
+                      >
+                        {field.field_label}
+                        {field.is_required && <span className="text-destructive ml-1">*</span>}
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        {field.field_description}
+                      </p>
+                      {field.deadline && (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground mt-2">
+                          <Calendar className="h-3 w-3" />
+                          <span>
+                            마감: {format(new Date(field.deadline), "yyyy년 M월 d일 HH:mm", { locale: ko })}
+                            {isPastDeadline ? ' (마감됨)' : ''}
+                          </span>
+                        </div>
+                      )}
+                      {!isPastDeadline && field.deadline && (
+                        <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">
+                          마감일 이후 변경사항은 반영되지 않을 수 있습니다.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
       <Card className="shadow-elevated">
         <CardHeader>
           <CardTitle>교통수단 선택</CardTitle>
