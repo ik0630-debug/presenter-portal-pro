@@ -153,9 +153,10 @@ const AdminProjects = () => {
         .replace(/-+/g, '-')
         .replace(/^-|-$/g, '');
       
+      // 외부 앱의 프로젝트명 = 이 앱의 행사명
       setFormData({
         project_name: selectedProject.project_name,
-        event_name: selectedProject.event_name || '', // 외부에는 행사명이 없을 수 있음
+        event_name: selectedProject.project_name, // 외부의 프로젝트명을 행사명으로
         description: selectedProject.description || "",
         start_date: selectedProject.start_date?.split('T')[0] || "",
         end_date: selectedProject.end_date?.split('T')[0] || "",
@@ -209,7 +210,7 @@ const AdminProjects = () => {
           // 외부 프로젝트 가져오기
           const { error } = await supabase.from('projects').insert({
             project_name: formData.project_name,
-            event_name: formData.event_name || null, // 행사명은 선택사항
+            event_name: formData.event_name, // 외부 프로젝트명을 행사명으로
             description: formData.description || null,
             start_date: formData.start_date || null,
             end_date: formData.end_date || null,
@@ -371,7 +372,7 @@ const AdminProjects = () => {
                           <h4 className="font-semibold">선택된 프로젝트 정보</h4>
                           <div className="space-y-1 text-sm">
                             <p><span className="text-muted-foreground">프로젝트명:</span> {formData.project_name}</p>
-                            {formData.event_name && <p><span className="text-muted-foreground">행사명:</span> {formData.event_name}</p>}
+                            <p><span className="text-muted-foreground">행사명:</span> {formData.event_name}</p>
                             {formData.description && <p><span className="text-muted-foreground">설명:</span> {formData.description}</p>}
                             {formData.start_date && <p><span className="text-muted-foreground">시작일:</span> {new Date(formData.start_date).toLocaleDateString('ko-KR')}</p>}
                             {formData.end_date && <p><span className="text-muted-foreground">종료일:</span> {new Date(formData.end_date).toLocaleDateString('ko-KR')}</p>}
@@ -405,12 +406,12 @@ const AdminProjects = () => {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="event_name">행사명 (선택사항)</Label>
+                          <Label htmlFor="event_name">행사명 *</Label>
                           <Input
                             id="event_name"
                             value={formData.event_name}
                             onChange={(e) => setFormData({...formData, event_name: e.target.value})}
-                            placeholder="외부 프로젝트는 행사명이 없을 수 있습니다"
+                            required
                           />
                         </div>
                       </div>
