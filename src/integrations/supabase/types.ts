@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_users: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: string
+          role: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id?: string
+          role?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: string
+          role?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       consent_records: {
         Row: {
           consent_date: string | null
@@ -143,6 +170,77 @@ export type Database = {
           },
         ]
       }
+      project_settings: {
+        Row: {
+          created_at: string | null
+          id: string
+          project_id: string
+          setting_key: string
+          setting_value: Json
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          project_id: string
+          setting_key: string
+          setting_value: Json
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          project_id?: string
+          setting_key?: string
+          setting_value?: Json
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_settings_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          end_date: string | null
+          event_name: string
+          id: string
+          is_active: boolean | null
+          project_name: string
+          start_date: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          event_name: string
+          id?: string
+          is_active?: boolean | null
+          project_name: string
+          start_date?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          event_name?: string
+          id?: string
+          is_active?: boolean | null
+          project_name?: string
+          start_date?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       speaker_sessions: {
         Row: {
           created_at: string | null
@@ -154,6 +252,7 @@ export type Database = {
           organization: string | null
           position: string | null
           presentation_date: string | null
+          project_id: string | null
           speaker_id: string
           speaker_name: string
           updated_at: string | null
@@ -168,6 +267,7 @@ export type Database = {
           organization?: string | null
           position?: string | null
           presentation_date?: string | null
+          project_id?: string | null
           speaker_id: string
           speaker_name: string
           updated_at?: string | null
@@ -182,11 +282,20 @@ export type Database = {
           organization?: string | null
           position?: string | null
           presentation_date?: string | null
+          project_id?: string | null
           speaker_id?: string
           speaker_name?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "speaker_sessions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
