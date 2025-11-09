@@ -38,10 +38,8 @@ const ConsentChecklist = () => {
       console.log('ConsentChecklist - Current user:', user?.email);
       
       if (!user?.email) {
-        console.error('ConsentChecklist - No user email found');
-        toast.error("로그인 정보를 찾을 수 없습니다.");
-        setIsLoading(false);
-        return;
+        console.log('ConsentChecklist - No authenticated user, showing default items');
+        // 인증된 사용자가 없어도 기본 동의서는 표시
       }
 
       // 기본 동의서 항목 (항상 표시)
@@ -118,13 +116,18 @@ const ConsentChecklist = () => {
       ];
 
       // speaker_sessions 조회 (있으면 추가 정보 로드)
-      const { data: session, error: sessionError } = await supabase
-        .from('speaker_sessions')
-        .select('id, project_id')
-        .eq('email', user.email)
-        .maybeSingle();
+      let session = null;
+      
+      if (user?.email) {
+        const { data: sessionData, error: sessionError } = await supabase
+          .from('speaker_sessions')
+          .select('id, project_id')
+          .eq('email', user.email)
+          .maybeSingle();
 
-      console.log('ConsentChecklist - Session query result:', { session, sessionError });
+        console.log('ConsentChecklist - Session query result:', { sessionData, sessionError });
+        session = sessionData;
+      }
 
       let customItems: ConsentItem[] = [];
       
