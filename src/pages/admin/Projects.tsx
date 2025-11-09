@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Plus, Edit, Trash2, Calendar, Settings, FileText, Clock, ListChecks, FileCheck, MapPinned, Download, Users } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -41,10 +43,11 @@ interface Project {
 
 interface ExternalProject {
   id: string;
-  name: string;
-  event_date: string;
-  venue: string;
-  description: string;
+  project_name: string;
+  event_name: string;
+  description: string | null;
+  start_date: string | null;
+  end_date: string | null;
   speakers: Array<{
     id: string;
     name: string;
@@ -59,10 +62,11 @@ const AdminProjects = () => {
   const [externalProjects, setExternalProjects] = useState<ExternalProject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingExternal, setIsLoadingExternal] = useState(false);
-  const [showExternal, setShowExternal] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [deleteProject, setDeleteProject] = useState<Project | null>(null);
+  const [selectedExternalProjectId, setSelectedExternalProjectId] = useState<string>("");
+  const [createMode, setCreateMode] = useState<"import" | "manual">("import");
   
   const [formData, setFormData] = useState({
     project_name: "",
@@ -76,6 +80,12 @@ const AdminProjects = () => {
     checkAuth();
     fetchProjects();
   }, []);
+
+  useEffect(() => {
+    if (isDialogOpen && !editingProject) {
+      fetchExternalProjectsForDialog();
+    }
+  }, [isDialogOpen, editingProject]);
 
   const checkAuth = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -111,7 +121,7 @@ const AdminProjects = () => {
     }
   };
 
-  const fetchExternalProjects = async () => {
+  const fetchExternalProjectsForDialog = async () => {
     setIsLoadingExternal(true);
     try {
       const { data, error } = await supabase.functions.invoke('get-external-projects');
@@ -120,8 +130,6 @@ const AdminProjects = () => {
       
       console.log('External projects:', data);
       setExternalProjects(data?.projects || []);
-      setShowExternal(true);
-      toast.success(`${data?.projects?.length || 0}개의 외부 프로젝트를 불러왔습니다.`);
     } catch (error: any) {
       toast.error("외부 프로젝트를 불러오는데 실패했습니다.");
       console.error(error);
@@ -130,9 +138,18 @@ const AdminProjects = () => {
     }
   };
 
-  const syncExternalProject = async (extProject: ExternalProject) => {
-    // 외부 프로젝트는 이미 외부 DB에 있으므로 동기화 불필요
-    toast.success(`'${extProject.name}' 프로젝트는 이미 외부 시스템에 있습니다.`);
+  const handleExternalProjectSelect = (projectId: string) => {
+    setSelectedExternalProjectId(projectId);
+    const selectedProject = externalProjects.find(p => p.id === projectId);
+    if (selectedProject) {
+      setFormData({
+        project_name: selectedProject.project_name,
+        event_name: selectedProject.event_name,
+        description: selectedProject.description || "",
+        start_date: selectedProject.start_date?.split('T')[0] || "",
+        end_date: selectedProject.end_date?.split('T')[0] || "",
+      });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -154,18 +171,24 @@ const AdminProjects = () => {
         if (error) throw error;
         toast.success("프로젝트가 수정되었습니다.");
       } else {
-        const { data, error } = await supabase.functions.invoke('create-external-project', {
-          body: {
-            project_name: formData.project_name,
-            event_name: formData.event_name,
-            description: formData.description || null,
-            start_date: formData.start_date || null,
-            end_date: formData.end_date || null,
-          }
-        });
+        // Import or create based on mode
+        if (createMode === "import" && selectedExternalProjectId) {
+          // Just confirm - project already exists in external DB
+          toast.success("외부 프로젝트를 가져왔습니다.");
+        } else {
+          const { data, error } = await supabase.functions.invoke('create-external-project', {
+            body: {
+              project_name: formData.project_name,
+              event_name: formData.event_name,
+              description: formData.description || null,
+              start_date: formData.start_date || null,
+              end_date: formData.end_date || null,
+            }
+          });
 
-        if (error) throw error;
-        toast.success("프로젝트가 생성되었습니다.");
+          if (error) throw error;
+          toast.success("프로젝트가 생성되었습니다.");
+        }
       }
 
       setIsDialogOpen(false);
@@ -205,6 +228,8 @@ const AdminProjects = () => {
       end_date: "",
     });
     setEditingProject(null);
+    setSelectedExternalProjectId("");
+    setCreateMode("import");
   };
 
   const openEditDialog = (project: Project) => {
@@ -243,15 +268,6 @@ const AdminProjects = () => {
             </h1>
           </div>
           <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              onClick={fetchExternalProjects}
-              disabled={isLoadingExternal}
-              className="gap-2"
-            >
-              <Download className="h-4 w-4" />
-              {isLoadingExternal ? "불러오는 중..." : "외부 프로젝트 불러오기"}
-            </Button>
             <Dialog open={isDialogOpen} onOpenChange={(open) => {
               setIsDialogOpen(open);
               if (!open) resetForm();
@@ -262,72 +278,196 @@ const AdminProjects = () => {
                   새 프로젝트
                 </Button>
               </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{editingProject ? "프로젝트 수정" : "새 프로젝트 만들기"}</DialogTitle>
                 <DialogDescription>
-                  프로젝트 정보를 입력하세요
+                  {editingProject ? "프로젝트 정보를 수정하세요" : "외부 프로젝트에서 가져오거나 직접 생성하세요"}
                 </DialogDescription>
               </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="project_name">프로젝트명 *</Label>
-                    <Input
-                      id="project_name"
-                      value={formData.project_name}
-                      onChange={(e) => setFormData({...formData, project_name: e.target.value})}
-                      required
-                    />
+
+              {!editingProject && (
+                <Tabs value={createMode} onValueChange={(value) => setCreateMode(value as "import" | "manual")}>
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="import">외부 프로젝트 가져오기</TabsTrigger>
+                    <TabsTrigger value="manual">직접 생성</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="import" className="space-y-4 mt-4">
+                    <div className="space-y-2">
+                      <Label>외부 프로젝트 선택</Label>
+                      {isLoadingExternal ? (
+                        <div className="text-center py-4">
+                          <p className="text-sm text-muted-foreground">프로젝트 목록을 불러오는 중...</p>
+                        </div>
+                      ) : (
+                        <Select value={selectedExternalProjectId} onValueChange={handleExternalProjectSelect}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="프로젝트를 선택하세요" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {externalProjects.map((project) => (
+                              <SelectItem key={project.id} value={project.id}>
+                                {project.project_name} - {project.event_name}
+                                {project.start_date && ` (${new Date(project.start_date).toLocaleDateString('ko-KR')})`}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
+
+                    {selectedExternalProjectId && (
+                      <div className="rounded-lg border p-4 space-y-2 bg-muted/50">
+                        <h4 className="font-semibold">선택된 프로젝트 정보</h4>
+                        <div className="space-y-1 text-sm">
+                          <p><span className="text-muted-foreground">프로젝트명:</span> {formData.project_name}</p>
+                          <p><span className="text-muted-foreground">행사명:</span> {formData.event_name}</p>
+                          {formData.description && <p><span className="text-muted-foreground">설명:</span> {formData.description}</p>}
+                          {formData.start_date && <p><span className="text-muted-foreground">시작일:</span> {new Date(formData.start_date).toLocaleDateString('ko-KR')}</p>}
+                          {formData.end_date && <p><span className="text-muted-foreground">종료일:</span> {new Date(formData.end_date).toLocaleDateString('ko-KR')}</p>}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex justify-end gap-2">
+                      <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                        취소
+                      </Button>
+                      <Button 
+                        onClick={(e) => { e.preventDefault(); handleSubmit(e as any); }}
+                        disabled={!selectedExternalProjectId}
+                      >
+                        가져오기
+                      </Button>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="manual" className="mt-4">
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="project_name">프로젝트명 *</Label>
+                          <Input
+                            id="project_name"
+                            value={formData.project_name}
+                            onChange={(e) => setFormData({...formData, project_name: e.target.value})}
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="event_name">행사명 *</Label>
+                          <Input
+                            id="event_name"
+                            value={formData.event_name}
+                            onChange={(e) => setFormData({...formData, event_name: e.target.value})}
+                            required
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="description">설명</Label>
+                        <Textarea
+                          id="description"
+                          value={formData.description}
+                          onChange={(e) => setFormData({...formData, description: e.target.value})}
+                          rows={3}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="start_date">시작일</Label>
+                          <Input
+                            id="start_date"
+                            type="date"
+                            value={formData.start_date}
+                            onChange={(e) => setFormData({...formData, start_date: e.target.value})}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="end_date">종료일</Label>
+                          <Input
+                            id="end_date"
+                            type="date"
+                            value={formData.end_date}
+                            onChange={(e) => setFormData({...formData, end_date: e.target.value})}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                          취소
+                        </Button>
+                        <Button type="submit">
+                          생성
+                        </Button>
+                      </div>
+                    </form>
+                  </TabsContent>
+                </Tabs>
+              )}
+
+              {editingProject && (
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="project_name">프로젝트명 *</Label>
+                      <Input
+                        id="project_name"
+                        value={formData.project_name}
+                        onChange={(e) => setFormData({...formData, project_name: e.target.value})}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="event_name">행사명 *</Label>
+                      <Input
+                        id="event_name"
+                        value={formData.event_name}
+                        onChange={(e) => setFormData({...formData, event_name: e.target.value})}
+                        required
+                      />
+                    </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="event_name">행사명 *</Label>
-                    <Input
-                      id="event_name"
-                      value={formData.event_name}
-                      onChange={(e) => setFormData({...formData, event_name: e.target.value})}
-                      required
+                    <Label htmlFor="description">설명</Label>
+                    <Textarea
+                      id="description"
+                      value={formData.description}
+                      onChange={(e) => setFormData({...formData, description: e.target.value})}
+                      rows={3}
                     />
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="description">설명</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
-                    rows={3}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="start_date">시작일</Label>
-                    <Input
-                      id="start_date"
-                      type="date"
-                      value={formData.start_date}
-                      onChange={(e) => setFormData({...formData, start_date: e.target.value})}
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="start_date">시작일</Label>
+                      <Input
+                        id="start_date"
+                        type="date"
+                        value={formData.start_date}
+                        onChange={(e) => setFormData({...formData, start_date: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="end_date">종료일</Label>
+                      <Input
+                        id="end_date"
+                        type="date"
+                        value={formData.end_date}
+                        onChange={(e) => setFormData({...formData, end_date: e.target.value})}
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="end_date">종료일</Label>
-                    <Input
-                      id="end_date"
-                      type="date"
-                      value={formData.end_date}
-                      onChange={(e) => setFormData({...formData, end_date: e.target.value})}
-                    />
+                  <div className="flex justify-end gap-2">
+                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                      취소
+                    </Button>
+                    <Button type="submit">
+                      수정
+                    </Button>
                   </div>
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                    취소
-                  </Button>
-                  <Button type="submit">
-                    {editingProject ? "수정" : "생성"}
-                  </Button>
-                </div>
-              </form>
+                </form>
+              )}
             </DialogContent>
           </Dialog>
           </div>
@@ -335,62 +475,7 @@ const AdminProjects = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8 max-w-6xl space-y-6">
-        {/* 외부 프로젝트 섹션 */}
-        {showExternal && externalProjects.length > 0 && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold">외부 시스템 프로젝트</h2>
-              <Button variant="ghost" size="sm" onClick={() => setShowExternal(false)}>
-                숨기기
-              </Button>
-            </div>
-            <div className="grid gap-4">
-              {externalProjects.map((project) => (
-                <Card key={project.id} className="shadow-elevated border-accent/20">
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <CardTitle className="text-xl">{project.name}</CardTitle>
-                          <Badge variant="outline">외부</Badge>
-                        </div>
-                        {project.description && (
-                          <p className="text-sm text-muted-foreground mt-2">{project.description}</p>
-                        )}
-                        {project.event_date && (
-                          <div className="flex items-center gap-2 mt-3 text-sm text-muted-foreground">
-                            <Calendar className="h-4 w-4" />
-                            <span>{new Date(project.event_date).toLocaleDateString('ko-KR')}</span>
-                            <span className="mx-2">•</span>
-                            <span>{project.venue}</span>
-                          </div>
-                        )}
-                        {project.speakers && project.speakers.length > 0 && (
-                          <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
-                            <Users className="h-4 w-4" />
-                            <span>{project.speakers.length}명의 연사</span>
-                            <span className="text-xs">
-                              ({project.speakers.map(s => s.name).join(', ')})
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      <Button
-                        onClick={() => syncExternalProject(project)}
-                        className="gap-2"
-                      >
-                        <Download className="h-4 w-4" />
-                        동기화
-                      </Button>
-                    </div>
-                  </CardHeader>
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 로컬 프로젝트 섹션 */}
+        {/* 등록된 프로젝트 섹션 */}
         <div className="space-y-4">
           <h2 className="text-xl font-bold">등록된 프로젝트</h2>
           {projects.length === 0 ? (
