@@ -1,39 +1,190 @@
-import { useRef } from "react";
+import { useRef, useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CalendarClock, MapPin, Car, DollarSign, Clock, Phone, Download, Printer } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
+import { CalendarClock, MapPin, Car, Clock, Phone, Download, Printer, MapPinned } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+
+interface ChecklistItem {
+  id: string;
+  item_text: string;
+  requires_response: boolean;
+  is_checked?: boolean;
+  response_text?: string;
+}
 
 const ArrivalGuide = () => {
   const printRef = useRef<HTMLDivElement>(null);
-
-  // TODO: 실제 데이터는 서버에서 가져와야 함
-  const arrivalData = {
-    eventName: "2024 국제 AI 컨퍼런스",
-    date: "2024년 12월 15일",
-    time: "14:00 - 14:45",
-    arrivalTime: "13:30",
-    venue: "서울 코엑스 그랜드볼룸",
-    address: "서울특별시 강남구 영동대로 513",
-    parking: {
-      available: true,
-      location: "코엑스 지하주차장 B2~B8",
-      fee: "무료 (발표자 차량번호 사전 등록)",
-      instructions: "주차 후 행사 데스크에서 주차권 수령",
-    },
+  const [isLoading, setIsLoading] = useState(true);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [projectId, setProjectId] = useState<string | null>(null);
+  
+  const [arrivalData, setArrivalData] = useState({
+    eventName: "",
+    venue: "",
+    address: "",
+    room: "",
+    time: "",
+    checkInTime: "",
+    checkInLocation: "",
+    parking: "",
     contact: {
-      name: "홍보팀 김담당",
-      phone: "02-1234-5678",
-      email: "contact@conference.com",
+      name: "",
+      phone: "",
+      email: "",
     },
-    honorarium: "500,000원",
-    checklistItems: [
-      "발표자료 USB 또는 노트북 지참",
-      "신분증 지참 (행사장 출입용)",
-      "발표 시연용 장비 사전 테스트 (13:45)",
-      "발표 시작 30분 전 현장 도착",
-    ],
+    emergency: "",
+    notes: "",
+  });
+
+  const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      const speakerSession = localStorage.getItem("speakerSession");
+      if (!speakerSession) {
+        toast.error("세션 정보를 찾을 수 없습니다.");
+        return;
+      }
+
+      const session = JSON.parse(speakerSession);
+      setSessionId(session.id);
+      setProjectId(session.project_id);
+
+      // Load arrival guide settings
+      const { data: settings, error: settingsError } = await supabase
+        .from('arrival_guide_settings')
+        .select('*')
+        .eq('project_id', session.project_id)
+        .maybeSingle();
+
+      if (settingsError) throw settingsError;
+
+      if (settings) {
+        setArrivalData({
+          eventName: session.event_name || "",
+          venue: settings.venue_name || "",
+          address: settings.venue_address || "",
+          room: settings.presentation_room || "",
+          time: settings.presentation_time || "",
+          checkInTime: settings.check_in_time || "",
+          checkInLocation: settings.check_in_location || "",
+          parking: settings.parking_info || "",
+          contact: {
+            name: settings.contact_name || "",
+            phone: settings.contact_phone || "",
+            email: settings.contact_email || "",
+          },
+          emergency: settings.emergency_contact || "",
+          notes: settings.additional_notes || "",
+        });
+      }
+
+      // Load checklist items
+      const { data: items, error: itemsError } = await supabase
+        .from('arrival_checklist_items')
+        .select('*')
+        .eq('project_id', session.project_id)
+        .order('display_order');
+
+      if (itemsError) throw itemsError;
+
+      if (items && items.length > 0) {
+        // Load speaker responses
+        const { data: responses, error: responsesError } = await supabase
+          .from('speaker_checklist_responses')
+          .select('*')
+          .eq('session_id', session.id);
+
+        if (responsesError) throw responsesError;
+
+        const responseMap = new Map(
+          responses?.map(r => [r.checklist_item_id, r]) || []
+        );
+
+        setChecklistItems(items.map(item => ({
+          id: item.id,
+          item_text: item.item_text,
+          requires_response: item.requires_response,
+          is_checked: responseMap.get(item.id)?.is_checked || false,
+          response_text: responseMap.get(item.id)?.response_text || "",
+        })));
+      }
+    } catch (error: any) {
+      console.error(error);
+      toast.error("데이터를 불러오는데 실패했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleChecklistChange = async (itemId: string, checked: boolean) => {
+    if (!sessionId) return;
+
+    try {
+      const { error } = await supabase
+        .from('speaker_checklist_responses')
+        .upsert({
+          session_id: sessionId,
+          checklist_item_id: itemId,
+          is_checked: checked,
+        }, {
+          onConflict: 'session_id,checklist_item_id'
+        });
+
+      if (error) throw error;
+
+      setChecklistItems(items =>
+        items.map(item =>
+          item.id === itemId ? { ...item, is_checked: checked } : item
+        )
+      );
+    } catch (error: any) {
+      console.error(error);
+      toast.error("저장 중 오류가 발생했습니다.");
+    }
+  };
+
+  const handleResponseChange = async (itemId: string, text: string) => {
+    if (!sessionId) return;
+
+    setChecklistItems(items =>
+      items.map(item =>
+        item.id === itemId ? { ...item, response_text: text } : item
+      )
+    );
+  };
+
+  const handleResponseBlur = async (itemId: string) => {
+    if (!sessionId) return;
+    
+    const item = checklistItems.find(i => i.id === itemId);
+    if (!item) return;
+
+    try {
+      const { error } = await supabase
+        .from('speaker_checklist_responses')
+        .upsert({
+          session_id: sessionId,
+          checklist_item_id: itemId,
+          response_text: item.response_text,
+          is_checked: item.is_checked || false,
+        }, {
+          onConflict: 'session_id,checklist_item_id'
+        });
+
+      if (error) throw error;
+    } catch (error: any) {
+      console.error(error);
+      toast.error("저장 중 오류가 발생했습니다.");
+    }
   };
 
   const handlePrint = () => {
@@ -58,8 +209,50 @@ const ArrivalGuide = () => {
     </div>
   );
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
+      <style>
+        {`
+          @media print {
+            body * {
+              visibility: hidden;
+            }
+            #printable-area, #printable-area * {
+              visibility: visible;
+            }
+            #printable-area {
+              position: absolute;
+              left: 0;
+              top: 0;
+              width: 100%;
+            }
+            .print\\:hidden {
+              display: none !important;
+            }
+            .print\\:shadow-none {
+              box-shadow: none !important;
+            }
+            .print\\:border-0 {
+              border: 0 !important;
+            }
+            .print\\:border-black {
+              border-color: black !important;
+            }
+            .print\\:bg-black {
+              background-color: black !important;
+            }
+          }
+        `}
+      </style>
+
       <div className="flex gap-2 justify-end print:hidden">
         <Button variant="outline" onClick={handleDownloadPDF} className="gap-2">
           <Download className="h-4 w-4" />
@@ -71,138 +264,164 @@ const ArrivalGuide = () => {
         </Button>
       </div>
 
-      <div ref={printRef} className="space-y-4">
-        <Card className="border-accent/20 bg-gradient-accent print:border-0">
-          <CardHeader>
-            <CardTitle className="text-white text-xl">
-              {arrivalData.eventName}
-            </CardTitle>
-            <CardDescription className="text-white/90 text-base">
-              발표자 현장 도착 안내
-            </CardDescription>
-          </CardHeader>
-        </Card>
+      <div id="printable-area" ref={printRef} className="space-y-4">
+        {arrivalData.eventName && (
+          <Card className="border-accent/20 bg-gradient-accent print:border-0">
+            <CardHeader>
+              <CardTitle className="text-white text-xl">
+                {arrivalData.eventName}
+              </CardTitle>
+              <CardDescription className="text-white/90 text-base">
+                발표자 현장 도착 안내
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        )}
 
-        <Card className="print:shadow-none">
-          <CardHeader>
-            <CardTitle className="text-lg">발표 일정</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <InfoSection icon={CalendarClock} title="발표 일시">
-              <p className="text-base font-semibold">
-                {arrivalData.date} {arrivalData.time}
-              </p>
-            </InfoSection>
-
-            <InfoSection icon={Clock} title="도착 시간">
-              <p className="text-base font-semibold text-destructive">
-                {arrivalData.arrivalTime}까지 필수 도착
-              </p>
-              <Badge variant="outline" className="mt-2">
-                발표 시작 30분 전 현장 도착 필수
-              </Badge>
-            </InfoSection>
-          </CardContent>
-        </Card>
-
-        <Card className="print:shadow-none">
-          <CardHeader>
-            <CardTitle className="text-lg">장소 정보</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <InfoSection icon={MapPin} title="발표 장소">
-              <p className="text-base font-semibold mb-1">
-                {arrivalData.venue}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {arrivalData.address}
-              </p>
-            </InfoSection>
-
-            {arrivalData.parking.available && (
-              <InfoSection icon={Car} title="주차 안내">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">주차 위치:</span>
-                    <span className="text-sm">{arrivalData.parking.location}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">주차 요금:</span>
-                    <span className="text-sm">{arrivalData.parking.fee}</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {arrivalData.parking.instructions}
+        {(arrivalData.time || arrivalData.checkInTime) && (
+          <Card className="print:shadow-none">
+            <CardHeader>
+              <CardTitle className="text-lg">발표 일정</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {arrivalData.time && (
+                <InfoSection icon={CalendarClock} title="발표 시간">
+                  <p className="text-base font-semibold">
+                    {arrivalData.time}
                   </p>
-                </div>
-              </InfoSection>
-            )}
-          </CardContent>
-        </Card>
+                </InfoSection>
+              )}
 
-        <Card className="print:shadow-none">
-          <CardHeader>
-            <CardTitle className="text-lg">강연료 정보</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <InfoSection icon={DollarSign} title="강연료">
-              <p className="text-base font-semibold">{arrivalData.honorarium}</p>
-              <p className="text-sm text-muted-foreground mt-2">
-                발표 종료 후 14일 이내 지급 예정
-              </p>
-            </InfoSection>
-          </CardContent>
-        </Card>
+              {arrivalData.checkInTime && (
+                <InfoSection icon={Clock} title="체크인 시간">
+                  <p className="text-base font-semibold text-destructive">
+                    {arrivalData.checkInTime}
+                  </p>
+                  {arrivalData.checkInLocation && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      장소: {arrivalData.checkInLocation}
+                    </p>
+                  )}
+                </InfoSection>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
-        <Card className="print:shadow-none">
-          <CardHeader>
-            <CardTitle className="text-lg">현장 체크리스트</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2">
-              {arrivalData.checklistItems.map((item, index) => (
-                <li key={index} className="flex items-start gap-2">
-                  <div className="w-5 h-5 rounded-full border-2 border-primary flex items-center justify-center mt-0.5 print:border-black">
-                    <div className="w-2 h-2 rounded-full bg-primary print:bg-black" />
+        {(arrivalData.venue || arrivalData.parking) && (
+          <Card className="print:shadow-none">
+            <CardHeader>
+              <CardTitle className="text-lg">장소 정보</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {arrivalData.venue && (
+                <InfoSection icon={MapPin} title="발표 장소">
+                  <p className="text-base font-semibold mb-1">
+                    {arrivalData.venue}
+                    {arrivalData.room && ` (${arrivalData.room})`}
+                  </p>
+                  {arrivalData.address && (
+                    <p className="text-sm text-muted-foreground">
+                      {arrivalData.address}
+                    </p>
+                  )}
+                </InfoSection>
+              )}
+
+              {arrivalData.parking && (
+                <InfoSection icon={Car} title="주차 안내">
+                  <p className="text-sm whitespace-pre-line">
+                    {arrivalData.parking}
+                  </p>
+                </InfoSection>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {checklistItems.length > 0 && (
+          <Card className="print:shadow-none">
+            <CardHeader>
+              <CardTitle className="text-lg">현장 체크리스트</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-3">
+                {checklistItems.map((item) => (
+                  <li key={item.id} className="space-y-2">
+                    <div className="flex items-start gap-3 print:gap-2">
+                      <Checkbox
+                        checked={item.is_checked}
+                        onCheckedChange={(checked) => handleChecklistChange(item.id, checked as boolean)}
+                        className="mt-1 print:hidden"
+                      />
+                      <div className="hidden print:block w-5 h-5 rounded border-2 border-black mt-0.5" />
+                      <div className="flex-1">
+                        <span className="text-sm">{item.item_text}</span>
+                        {item.requires_response && (
+                          <Textarea
+                            value={item.response_text}
+                            onChange={(e) => handleResponseChange(item.id, e.target.value)}
+                            onBlur={() => handleResponseBlur(item.id)}
+                            placeholder="응답을 입력하세요..."
+                            className="mt-2 print:hidden"
+                            rows={2}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
+
+        {(arrivalData.contact.name || arrivalData.emergency) && (
+          <Card className="print:shadow-none">
+            <CardHeader>
+              <CardTitle className="text-lg">담당자 연락처</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {arrivalData.contact.name && (
+                <InfoSection icon={Phone} title="담당자 정보">
+                  <div className="space-y-1">
+                    <p className="text-sm">
+                      <span className="font-medium">담당자:</span> {arrivalData.contact.name}
+                    </p>
+                    {arrivalData.contact.phone && (
+                      <p className="text-sm">
+                        <span className="font-medium">전화:</span> {arrivalData.contact.phone}
+                      </p>
+                    )}
+                    {arrivalData.contact.email && (
+                      <p className="text-sm">
+                        <span className="font-medium">이메일:</span> {arrivalData.contact.email}
+                      </p>
+                    )}
                   </div>
-                  <span className="text-sm">{item}</span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+                </InfoSection>
+              )}
+              {arrivalData.emergency && (
+                <InfoSection icon={Phone} title="긴급 연락처">
+                  <p className="text-sm">{arrivalData.emergency}</p>
+                </InfoSection>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
-        <Card className="print:shadow-none">
-          <CardHeader>
-            <CardTitle className="text-lg">담당자 연락처</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <InfoSection icon={Phone} title="긴급 연락처">
-              <div className="space-y-1">
-                <p className="text-sm">
-                  <span className="font-medium">담당자:</span> {arrivalData.contact.name}
-                </p>
-                <p className="text-sm">
-                  <span className="font-medium">전화:</span> {arrivalData.contact.phone}
-                </p>
-                <p className="text-sm">
-                  <span className="font-medium">이메일:</span> {arrivalData.contact.email}
-                </p>
+        {arrivalData.notes && (
+          <Card className="border-accent/20 print:shadow-none">
+            <CardContent className="pt-6">
+              <div className="space-y-2 text-sm">
+                <p className="font-medium text-foreground">참고 사항</p>
+                <div className="text-muted-foreground whitespace-pre-line">
+                  {arrivalData.notes}
+                </div>
               </div>
-            </InfoSection>
-          </CardContent>
-        </Card>
-
-        <Card className="border-accent/20 print:shadow-none">
-          <CardContent className="pt-6">
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <p className="font-medium text-foreground">참고 사항</p>
-              <p>• 발표자료는 사전에 이메일로 제출하시거나 USB를 지참해 주세요.</p>
-              <p>• 현장 도착 후 행사 데스크에서 체크인 해주세요.</p>
-              <p>• 발표 시작 15분 전 발표장에서 음향 및 영상 테스트를 진행합니다.</p>
-              <p>• 문의사항이 있으시면 언제든 담당자에게 연락 주세요.</p>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
