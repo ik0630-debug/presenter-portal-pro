@@ -398,7 +398,7 @@ const PresentationUpload = () => {
         <CardHeader>
           <CardTitle className="text-lg">발표 관련 정보</CardTitle>
           <CardDescription>
-            발표 시 필요한 장비 및 요청사항을 입력해주세요
+            발표 자료는 별도의 콘솔데스크에서 송출해 드리며, 발표자께는 화면 전환을 위한 클리커(포인터)가 제공됩니다.
           </CardDescription>
         </CardHeader>
         <CardContent>
