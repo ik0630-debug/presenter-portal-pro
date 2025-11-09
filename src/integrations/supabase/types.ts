@@ -443,9 +443,11 @@ export type Database = {
           description: string | null
           end_date: string | null
           event_name: string
+          external_project_id: string | null
           id: string
           is_active: boolean | null
           project_name: string
+          slug: string | null
           start_date: string | null
           updated_at: string | null
         }
@@ -454,9 +456,11 @@ export type Database = {
           description?: string | null
           end_date?: string | null
           event_name: string
+          external_project_id?: string | null
           id?: string
           is_active?: boolean | null
           project_name: string
+          slug?: string | null
           start_date?: string | null
           updated_at?: string | null
         }
@@ -465,9 +469,11 @@ export type Database = {
           description?: string | null
           end_date?: string | null
           event_name?: string
+          external_project_id?: string | null
           id?: string
           is_active?: boolean | null
           project_name?: string
+          slug?: string | null
           start_date?: string | null
           updated_at?: string | null
         }

@@ -11,6 +11,7 @@ import ConsentChecklist from "@/components/dashboard/ConsentChecklist";
 import ArrivalGuide from "@/components/dashboard/ArrivalGuide";
 import TransportationInfo from "@/components/dashboard/TransportationInfo";
 import { getConfig, getResponse } from "@/services/externalApi";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const STEPS = [
@@ -25,7 +26,8 @@ const STEPS = [
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { projectId, speakerEmail } = useParams();
+  const { projectSlug, speakerEmail } = useParams();
+  const [projectId, setProjectId] = useState<string | undefined>();
   const [showConfirmation, setShowConfirmation] = useState(true);
   const [currentStep, setCurrentStep] = useState(0);
   const [speakerName, setSpeakerName] = useState("발표자");
@@ -35,18 +37,29 @@ const Dashboard = () => {
   useEffect(() => {
     const loadPortalData = async () => {
       // URL 파라미터가 있으면 외부 API 사용
-      if (projectId && speakerEmail) {
+      if (projectSlug && speakerEmail) {
         try {
           setIsLoading(true);
           
+          // slug로 프로젝트 조회
+          const { data: project, error } = await supabase
+            .from('projects')
+            .select('id, external_project_id')
+            .eq('slug', projectSlug)
+            .single();
+
+          if (error) throw error;
+          
+          setProjectId(project.external_project_id || project.id);
+          
           // 설정 조회
-          const config = await getConfig(projectId);
+          const config = await getConfig(project.external_project_id || project.id);
           if (config.project) {
             setSpeakerName(speakerEmail.split('@')[0] || "발표자");
           }
 
           // 기존 응답 조회
-          const response = await getResponse(projectId, speakerEmail);
+          const response = await getResponse(project.external_project_id || project.id, speakerEmail);
           if (response) {
             setCompletedSteps(response.completed_steps || []);
             // 마지막 완료 단계로 이동
@@ -74,7 +87,7 @@ const Dashboard = () => {
     };
 
     loadPortalData();
-  }, [projectId, speakerEmail]);
+  }, [projectSlug, speakerEmail]);
 
   const handleConfirmation = () => {
     setShowConfirmation(false);
@@ -82,7 +95,7 @@ const Dashboard = () => {
   };
 
   const handleLogout = () => {
-    if (projectId && speakerEmail) {
+    if (projectSlug && speakerEmail) {
       navigate("/");
     } else {
       localStorage.removeItem('speakerSession');

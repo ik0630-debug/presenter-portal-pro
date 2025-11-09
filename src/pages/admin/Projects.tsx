@@ -39,6 +39,8 @@ interface Project {
   end_date: string | null;
   is_active: boolean;
   created_at: string;
+  external_project_id: string | null;
+  slug: string | null;
 }
 
 interface ExternalProject {
@@ -74,6 +76,7 @@ const AdminProjects = () => {
     description: "",
     start_date: "",
     end_date: "",
+    slug: "",
   });
 
   useEffect(() => {
@@ -142,12 +145,21 @@ const AdminProjects = () => {
     setSelectedExternalProjectId(projectId);
     const selectedProject = externalProjects.find(p => p.id === projectId);
     if (selectedProject) {
+      // 자동으로 slug 생성
+      const autoSlug = selectedProject.project_name
+        .toLowerCase()
+        .replace(/[^a-z0-9가-힣\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+      
       setFormData({
         project_name: selectedProject.project_name,
         event_name: selectedProject.event_name,
         description: selectedProject.description || "",
         start_date: selectedProject.start_date?.split('T')[0] || "",
         end_date: selectedProject.end_date?.split('T')[0] || "",
+        slug: autoSlug,
       });
     }
   };
@@ -156,34 +168,68 @@ const AdminProjects = () => {
     e.preventDefault();
 
     try {
+      // slug 유효성 검사
+      if (!formData.slug) {
+        toast.error("프로젝트 경로(slug)를 입력해주세요.");
+        return;
+      }
+
+      // slug 중복 체크
+      if (!editingProject) {
+        const { data: existingProject } = await supabase
+          .from('projects')
+          .select('id')
+          .eq('slug', formData.slug)
+          .maybeSingle();
+
+        if (existingProject) {
+          toast.error("이미 사용중인 경로입니다. 다른 경로를 입력해주세요.");
+          return;
+        }
+      }
+
       if (editingProject) {
-        const { data, error } = await supabase.functions.invoke('update-external-project', {
-          body: {
-            id: editingProject.id,
+        // 로컬 프로젝트 수정
+        const { error } = await supabase
+          .from('projects')
+          .update({
             project_name: formData.project_name,
             event_name: formData.event_name,
             description: formData.description || null,
             start_date: formData.start_date || null,
             end_date: formData.end_date || null,
-          }
-        });
+            slug: formData.slug,
+          })
+          .eq('id', editingProject.id);
 
         if (error) throw error;
         toast.success("프로젝트가 수정되었습니다.");
       } else {
-        // Import or create based on mode
         if (createMode === "import" && selectedExternalProjectId) {
-          // Just confirm - project already exists in external DB
+          // 외부 프로젝트 가져오기
+          const { error } = await supabase.from('projects').insert({
+            project_name: formData.project_name,
+            event_name: formData.event_name,
+            description: formData.description || null,
+            start_date: formData.start_date || null,
+            end_date: formData.end_date || null,
+            external_project_id: selectedExternalProjectId,
+            slug: formData.slug,
+            is_active: true,
+          });
+
+          if (error) throw error;
           toast.success("외부 프로젝트를 가져왔습니다.");
         } else {
-          const { data, error } = await supabase.functions.invoke('create-external-project', {
-            body: {
-              project_name: formData.project_name,
-              event_name: formData.event_name,
-              description: formData.description || null,
-              start_date: formData.start_date || null,
-              end_date: formData.end_date || null,
-            }
+          // 새 로컬 프로젝트 생성
+          const { error } = await supabase.from('projects').insert({
+            project_name: formData.project_name,
+            event_name: formData.event_name,
+            description: formData.description || null,
+            start_date: formData.start_date || null,
+            end_date: formData.end_date || null,
+            slug: formData.slug,
+            is_active: true,
           });
 
           if (error) throw error;
@@ -204,9 +250,10 @@ const AdminProjects = () => {
     if (!deleteProject) return;
 
     try {
-      const { data, error } = await supabase.functions.invoke('delete-external-project', {
-        body: { id: deleteProject.id }
-      });
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', deleteProject.id);
 
       if (error) throw error;
       
@@ -226,6 +273,7 @@ const AdminProjects = () => {
       description: "",
       start_date: "",
       end_date: "",
+      slug: "",
     });
     setEditingProject(null);
     setSelectedExternalProjectId("");
@@ -240,6 +288,7 @@ const AdminProjects = () => {
       description: project.description || "",
       start_date: project.start_date?.split('T')[0] || "",
       end_date: project.end_date?.split('T')[0] || "",
+      slug: project.slug || "",
     });
     setIsDialogOpen(true);
   };
@@ -394,6 +443,19 @@ const AdminProjects = () => {
                           />
                         </div>
                       </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="slug">프로젝트 경로 (URL) *</Label>
+                        <Input
+                          id="slug"
+                          value={formData.slug}
+                          onChange={(e) => setFormData({...formData, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')})}
+                          placeholder="ai-conference-2024"
+                          required
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          발표자 링크: {window.location.origin}/{formData.slug || '{경로}'}/{'발표자이메일'}
+                        </p>
+                      </div>
                       <div className="flex justify-end gap-2">
                         <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                           취소
@@ -492,10 +554,32 @@ const AdminProjects = () => {
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <CardTitle className="text-xl">{project.project_name}</CardTitle>
+                      <div className="flex items-center gap-2">
+                        <CardTitle className="text-xl">{project.project_name}</CardTitle>
+                        {project.external_project_id && (
+                          <Badge variant="secondary">외부 연동</Badge>
+                        )}
+                      </div>
                       <CardDescription className="mt-2">
                         {project.event_name}
                       </CardDescription>
+                      {project.slug && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <code className="text-xs bg-muted px-2 py-1 rounded">
+                            {window.location.origin}/{project.slug}/{'발표자이메일'}
+                          </code>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              navigator.clipboard.writeText(`${window.location.origin}/${project.slug}/`);
+                              toast.success("링크가 복사되었습니다");
+                            }}
+                          >
+                            복사
+                          </Button>
+                        </div>
+                      )}
                       {project.description && (
                         <p className="text-sm text-muted-foreground mt-2">{project.description}</p>
                       )}
