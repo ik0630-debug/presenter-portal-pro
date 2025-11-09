@@ -4,43 +4,32 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, File, X, Calendar, Plus, Loader2, Trash2, Star, Download } from "lucide-react";
+import { Upload, File, X, Calendar, Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 interface UploadedFile {
-  file?: File; // 새로 선택한 파일
+  file: File;
   uploadDate: string;
   isSelected: boolean;
   id?: string; // DB에서 로드된 파일의 경우
   filePath?: string; // Storage 경로
-  fileName?: string; // DB의 파일명
-  fileSize?: number; // DB의 파일 크기
-  isPrimary?: boolean; // 우선 송출 파일 여부
-}
-
-interface SavedFile {
-  id: string;
-  file_name: string;
-  file_path: string;
-  file_size: number;
-  uploaded_at: string;
-  is_primary: boolean;
 }
 
 const PresentationUpload = () => {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
-  const [savedFiles, setSavedFiles] = useState<SavedFile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string>("");
   const deadline = "2024-12-31 23:59";
   
   // 발표 관련 정보 상태
-  const [presentationFields, setPresentationFields] = useState<any[]>([]);
-  const [presentationInfo, setPresentationInfo] = useState<Record<string, boolean>>({});
-  const [specialRequirements, setSpecialRequirements] = useState("");
+  const [presentationInfo, setPresentationInfo] = useState({
+    needsAudio: false,
+    ownLaptop: false,
+    hasVideo: false,
+    specialRequirements: "",
+  });
 
   // 세션 정보 및 기존 데이터 로드
   useEffect(() => {
@@ -60,7 +49,7 @@ const PresentationUpload = () => {
       // speaker_sessions에서 세션 정보 가져오기
       const { data: session, error: sessionError } = await supabase
         .from('speaker_sessions')
-        .select('id, project_id')
+        .select('id')
         .eq('email', user.email)
         .maybeSingle();
 
@@ -77,34 +66,6 @@ const PresentationUpload = () => {
 
       setSessionId(session.id);
 
-      // 프로젝트 설정에서 발표 정보 필드 가져오기
-      const { data: fieldsSettings } = await supabase
-        .from('project_settings')
-        .select('setting_value')
-        .eq('project_id', session.project_id)
-        .eq('setting_key', 'presentation_info_fields')
-        .maybeSingle();
-
-      // 기본 필드 정의
-      const defaultFields = [
-        { id: 'use_video', label: '동영상 사용', description: '발표에 동영상이 포함되어 있습니다', order: 1, enabled: true },
-        { id: 'use_audio', label: '소리 사용', description: '발표에 오디오가 포함되어 있습니다', order: 2, enabled: true },
-        { id: 'use_personal_laptop', label: '개인 노트북 사용', description: '개인 노트북을 사용하여 발표합니다', order: 3, enabled: true },
-      ];
-
-      let allFields = defaultFields;
-      
-      if (fieldsSettings?.setting_value) {
-        // 설정된 커스텀 필드 중 enabled=true인 것만 가져오기
-        const customFields = (fieldsSettings.setting_value as any[])
-          .filter(f => f.enabled && !['use_video', 'use_audio', 'use_personal_laptop'].includes(f.id));
-        
-        // 기본 필드 + 커스텀 필드를 합치고 순서대로 정렬
-        allFields = [...defaultFields, ...customFields].sort((a, b) => a.order - b.order);
-      }
-      
-      setPresentationFields(allFields);
-
       // 발표 정보 로드
       const { data: info, error: infoError } = await supabase
         .from('presentation_info')
@@ -114,15 +75,14 @@ const PresentationUpload = () => {
 
       if (infoError) {
         console.error('Info error:', infoError);
+      } else if (info) {
+        setPresentationInfo({
+          needsAudio: info.use_audio,
+          ownLaptop: info.use_personal_laptop,
+          hasVideo: info.use_video,
+          specialRequirements: info.special_requests || "",
+        });
       }
-      
-      // 발표 정보 상태 설정 (DB에서 로드된 값 또는 기본값)
-      const loadedInfo: Record<string, boolean> = {};
-      allFields.forEach(field => {
-        loadedInfo[field.id] = info?.[field.id] || false;
-      });
-      setPresentationInfo(loadedInfo);
-      setSpecialRequirements(info?.special_requests || "");
 
       // 업로드된 파일 목록 로드
       const { data: files, error: filesError } = await supabase
@@ -133,8 +93,9 @@ const PresentationUpload = () => {
 
       if (filesError) {
         console.error('Files error:', filesError);
-      } else if (files) {
-        setSavedFiles(files as SavedFile[]);
+      } else if (files && files.length > 0) {
+        // TODO: Storage에서 실제 파일을 다운로드하거나 참조를 표시
+        toast.info(`${files.length}개의 업로드된 파일이 있습니다.`);
       }
     } catch (error) {
       console.error('Load error:', error);
@@ -156,7 +117,7 @@ const PresentationUpload = () => {
       const newFile: UploadedFile = {
         file,
         uploadDate: new Date().toLocaleString("ko-KR"),
-        isSelected: savedFiles.length === 0 && uploadedFiles.length === 0, // 첫 파일은 자동으로 선택
+        isSelected: uploadedFiles.length === 0, // 첫 파일은 자동으로 선택
       };
       
       setUploadedFiles([...uploadedFiles, newFile]);
@@ -182,7 +143,7 @@ const PresentationUpload = () => {
       // 각 파일을 Storage에 업로드하고 DB에 저장
       for (let i = 0; i < uploadedFiles.length; i++) {
         const uploadedFile = uploadedFiles[i];
-        if (!uploadedFile.file) continue; // 파일이 없으면 건너뛰기
+        if (uploadedFile.id) continue; // 이미 업로드된 파일은 건너뛰기
 
         const file = uploadedFile.file;
         const fileExt = file.name.split('.').pop();
@@ -242,121 +203,8 @@ const PresentationUpload = () => {
 
   const handleRemove = (index: number) => {
     const newFiles = uploadedFiles.filter((_, i) => i !== index);
-    // 첫 번째 파일이 삭제되었고 남은 파일이 있으면 새로운 첫 번째 파일을 선택
-    if (uploadedFiles[index].isSelected && newFiles.length > 0) {
-      newFiles[0].isSelected = true;
-    }
     setUploadedFiles(newFiles);
     toast.info("파일이 제거되었습니다.");
-  };
-
-  const handleDeleteSavedFile = async (file: SavedFile) => {
-    if (!confirm(`'${file.file_name}' 파일을 삭제하시겠습니까?`)) {
-      return;
-    }
-
-    setDeletingId(file.id);
-    try {
-      // Storage에서 파일 삭제
-      const { error: storageError } = await supabase.storage
-        .from('presentations')
-        .remove([file.file_path]);
-
-      if (storageError) {
-        console.error('Storage delete error:', storageError);
-        toast.error("파일 삭제에 실패했습니다.");
-        return;
-      }
-
-      // DB에서 파일 정보 삭제
-      const { error: dbError } = await supabase
-        .from('presentation_files')
-        .delete()
-        .eq('id', file.id);
-
-      if (dbError) {
-        console.error('DB delete error:', dbError);
-        toast.error("파일 정보 삭제에 실패했습니다.");
-        return;
-      }
-
-      // 로컬 상태 업데이트
-      setSavedFiles(savedFiles.filter(f => f.id !== file.id));
-      toast.success("파일이 삭제되었습니다.");
-    } catch (error) {
-      console.error('Delete error:', error);
-      toast.error("파일 삭제 중 오류가 발생했습니다.");
-    } finally {
-      setDeletingId(null);
-    }
-  };
-
-  const handleTogglePrimary = async (file: SavedFile) => {
-    try {
-      // 모든 파일의 is_primary를 false로 설정
-      const { error: resetError } = await supabase
-        .from('presentation_files')
-        .update({ is_primary: false })
-        .eq('session_id', sessionId);
-
-      if (resetError) {
-        console.error('Reset error:', resetError);
-        toast.error("우선 송출 파일 설정에 실패했습니다.");
-        return;
-      }
-
-      // 선택한 파일을 is_primary = true로 설정
-      const { error: updateError } = await supabase
-        .from('presentation_files')
-        .update({ is_primary: true })
-        .eq('id', file.id);
-
-      if (updateError) {
-        console.error('Update error:', updateError);
-        toast.error("우선 송출 파일 설정에 실패했습니다.");
-        return;
-      }
-
-      // 로컬 상태 업데이트
-      setSavedFiles(savedFiles.map(f => ({
-        ...f,
-        is_primary: f.id === file.id,
-      })));
-
-      toast.success("우선 송출 파일이 변경되었습니다.");
-    } catch (error) {
-      console.error('Toggle primary error:', error);
-      toast.error("우선 송출 파일 설정 중 오류가 발생했습니다.");
-    }
-  };
-
-  const handleDownloadFile = async (file: SavedFile) => {
-    try {
-      const { data, error } = await supabase.storage
-        .from('presentations')
-        .download(file.file_path);
-
-      if (error) {
-        console.error('Download error:', error);
-        toast.error("파일 다운로드에 실패했습니다.");
-        return;
-      }
-
-      // Blob을 URL로 변환하여 다운로드
-      const url = URL.createObjectURL(data);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = file.file_name;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      toast.success("파일 다운로드가 완료되었습니다.");
-    } catch (error) {
-      console.error('Download error:', error);
-      toast.error("파일 다운로드 중 오류가 발생했습니다.");
-    }
   };
 
   const handleToggleSelection = (index: number) => {
@@ -386,8 +234,10 @@ const PresentationUpload = () => {
 
       const infoData = {
         session_id: sessionId,
-        ...presentationInfo,
-        special_requests: specialRequirements,
+        use_audio: presentationInfo.needsAudio,
+        use_personal_laptop: presentationInfo.ownLaptop,
+        use_video: presentationInfo.hasVideo,
+        special_requests: presentationInfo.specialRequirements,
       };
 
       if (existing) {
@@ -449,65 +299,6 @@ const PresentationUpload = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* 업로드된 파일 목록 */}
-          {savedFiles.length > 0 && (
-            <div className="space-y-3">
-              <Label className="text-sm font-semibold">업로드된 파일</Label>
-              {savedFiles.map((file) => (
-                <div key={file.id} className="flex items-center gap-3 p-4 border rounded-lg bg-muted/30">
-                  <Checkbox
-                    checked={file.is_primary}
-                    onCheckedChange={() => handleTogglePrimary(file)}
-                    className="mt-1"
-                  />
-                  <div className="flex items-center gap-3 flex-1">
-                    <File className="h-8 w-8 text-primary shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{file.file_name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {(file.file_size / (1024 * 1024)).toFixed(2)} MB
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        업로드: {new Date(file.uploaded_at).toLocaleString('ko-KR')}
-                      </p>
-                      {file.is_primary && (
-                        <p className="text-xs text-destructive font-medium mt-1 flex items-center gap-1">
-                          <Star className="h-3 w-3 fill-current" />
-                          우선 송출 파일
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex gap-2 shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDownloadFile(file)}
-                      title="다운로드"
-                    >
-                      <Download className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDeleteSavedFile(file)}
-                      className="text-destructive hover:text-destructive"
-                      disabled={deletingId === file.id}
-                      title="삭제"
-                    >
-                      {deletingId === file.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* 새 파일 선택 영역 */}
           {uploadedFiles.length === 0 ? (
             <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
               <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
@@ -529,7 +320,6 @@ const PresentationUpload = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              <Label className="text-sm font-semibold">선택한 파일 (업로드 대기 중)</Label>
               {uploadedFiles.map((uploadedFile, index) => (
                 <div key={index} className="flex items-center gap-3 p-4 border rounded-lg bg-primary/5">
                   <Checkbox
@@ -540,9 +330,9 @@ const PresentationUpload = () => {
                   <div className="flex items-center gap-3 flex-1">
                     <File className="h-8 w-8 text-primary shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{uploadedFile.file?.name}</p>
+                      <p className="font-medium truncate">{uploadedFile.file.name}</p>
                       <p className="text-sm text-muted-foreground">
-                        {uploadedFile.file ? (uploadedFile.file.size / (1024 * 1024)).toFixed(2) : 0} MB
+                        {(uploadedFile.file.size / (1024 * 1024)).toFixed(2)} MB
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
                         업로드: {uploadedFile.uploadDate}
@@ -597,12 +387,7 @@ const PresentationUpload = () => {
 
           <div className="text-sm text-muted-foreground space-y-1">
             <p>• 마감 시간까지 자유롭게 수정 가능합니다</p>
-            {savedFiles.length > 0 && (
-              <p>• 체크박스로 우선 송출할 파일을 선택할 수 있습니다</p>
-            )}
-            {uploadedFiles.length > 0 && (
-              <p>• 여러 파일을 선택한 경우 체크박스로 송출할 파일을 지정하세요</p>
-            )}
+            <p>• 여러 파일을 업로드한 경우 체크박스로 송출할 파일을 선택해주세요</p>
             <p>• 최대 파일 크기: 100MB</p>
           </div>
         </CardContent>
@@ -613,31 +398,65 @@ const PresentationUpload = () => {
         <CardHeader>
           <CardTitle className="text-lg">발표 관련 정보</CardTitle>
           <CardDescription>
-            발표 자료는 별도의 콘솔데스크에서 송출해 드리며, 발표자께는 화면 전환을 위한 클리커(포인터)가 제공됩니다.
+            발표 시 필요한 장비 및 요청사항을 입력해주세요
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handlePresentationInfoSubmit} className="space-y-6">
             <div className="space-y-4">
-              {presentationFields.map((field) => (
-                <div key={field.id} className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-accent/5 transition-colors">
-                  <Checkbox
-                    id={field.id}
-                    checked={presentationInfo[field.id] || false}
-                    onCheckedChange={(checked) =>
-                      setPresentationInfo({ ...presentationInfo, [field.id]: checked as boolean })
-                    }
-                  />
-                  <Label htmlFor={field.id} className="cursor-pointer flex-1">
-                    <div>
-                      <p className="font-medium">{field.label}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {field.description}
-                      </p>
-                    </div>
-                  </Label>
-                </div>
-              ))}
+              <div className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-accent/5 transition-colors">
+                <Checkbox
+                  id="needsAudio"
+                  checked={presentationInfo.needsAudio}
+                  onCheckedChange={(checked) =>
+                    setPresentationInfo({ ...presentationInfo, needsAudio: checked as boolean })
+                  }
+                />
+                <Label htmlFor="needsAudio" className="cursor-pointer flex-1">
+                  <div>
+                    <p className="font-medium">소리 사용</p>
+                    <p className="text-sm text-muted-foreground">
+                      발표 중 오디오를 재생합니다
+                    </p>
+                  </div>
+                </Label>
+              </div>
+
+              <div className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-accent/5 transition-colors">
+                <Checkbox
+                  id="ownLaptop"
+                  checked={presentationInfo.ownLaptop}
+                  onCheckedChange={(checked) =>
+                    setPresentationInfo({ ...presentationInfo, ownLaptop: checked as boolean })
+                  }
+                />
+                <Label htmlFor="ownLaptop" className="cursor-pointer flex-1">
+                  <div>
+                    <p className="font-medium">개인 노트북 사용</p>
+                    <p className="text-sm text-muted-foreground">
+                      본인의 노트북으로 발표합니다
+                    </p>
+                  </div>
+                </Label>
+              </div>
+
+              <div className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-accent/5 transition-colors">
+                <Checkbox
+                  id="hasVideo"
+                  checked={presentationInfo.hasVideo}
+                  onCheckedChange={(checked) =>
+                    setPresentationInfo({ ...presentationInfo, hasVideo: checked as boolean })
+                  }
+                />
+                <Label htmlFor="hasVideo" className="cursor-pointer flex-1">
+                  <div>
+                    <p className="font-medium">동영상 상영</p>
+                    <p className="text-sm text-muted-foreground">
+                      발표에 동영상이 포함되어 있습니다
+                    </p>
+                  </div>
+                </Label>
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -645,11 +464,16 @@ const PresentationUpload = () => {
               <Textarea
                 id="specialRequirements"
                 placeholder="추가로 필요한 장비나 요청사항을 입력해주세요"
-                value={specialRequirements}
-                onChange={(e) => setSpecialRequirements(e.target.value)}
+                value={presentationInfo.specialRequirements}
+                onChange={(e) =>
+                  setPresentationInfo({ ...presentationInfo, specialRequirements: e.target.value })
+                }
                 rows={4}
                 className="resize-none"
               />
+              <p className="text-xs text-muted-foreground">
+                예: 레이저 포인터, 화이트보드, 추가 마이크 등
+              </p>
             </div>
 
             <Button type="submit" className="w-full" disabled={isLoading}>
