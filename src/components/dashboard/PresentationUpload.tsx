@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Upload, File, X, Calendar, Plus } from "lucide-react";
 import { toast } from "sonner";
 
@@ -14,6 +16,14 @@ interface UploadedFile {
 const PresentationUpload = () => {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const deadline = "2024-12-31 23:59";
+  
+  // 발표 관련 정보 상태
+  const [presentationInfo, setPresentationInfo] = useState({
+    needsAudio: false,
+    ownLaptop: false,
+    hasVideo: false,
+    specialRequirements: "",
+  });
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -65,6 +75,12 @@ const PresentationUpload = () => {
       isSelected: i === index,
     }));
     setUploadedFiles(newFiles);
+  };
+
+  const handlePresentationInfoSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // TODO: 서버에 정보 저장
+    toast.success("발표 정보가 저장되었습니다.");
   };
 
   return (
@@ -176,6 +192,96 @@ const PresentationUpload = () => {
             <p>• 여러 파일을 업로드한 경우 체크박스로 송출할 파일을 선택해주세요</p>
             <p>• 최대 파일 크기: 100MB</p>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* 발표 관련 정보 섹션 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">발표 관련 정보</CardTitle>
+          <CardDescription>
+            발표 시 필요한 장비 및 요청사항을 입력해주세요
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handlePresentationInfoSubmit} className="space-y-6">
+            <div className="space-y-4">
+              <div className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-accent/5 transition-colors">
+                <Checkbox
+                  id="needsAudio"
+                  checked={presentationInfo.needsAudio}
+                  onCheckedChange={(checked) =>
+                    setPresentationInfo({ ...presentationInfo, needsAudio: checked as boolean })
+                  }
+                />
+                <Label htmlFor="needsAudio" className="cursor-pointer flex-1">
+                  <div>
+                    <p className="font-medium">소리 사용</p>
+                    <p className="text-sm text-muted-foreground">
+                      발표 중 오디오를 재생합니다
+                    </p>
+                  </div>
+                </Label>
+              </div>
+
+              <div className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-accent/5 transition-colors">
+                <Checkbox
+                  id="ownLaptop"
+                  checked={presentationInfo.ownLaptop}
+                  onCheckedChange={(checked) =>
+                    setPresentationInfo({ ...presentationInfo, ownLaptop: checked as boolean })
+                  }
+                />
+                <Label htmlFor="ownLaptop" className="cursor-pointer flex-1">
+                  <div>
+                    <p className="font-medium">개인 노트북 사용</p>
+                    <p className="text-sm text-muted-foreground">
+                      본인의 노트북으로 발표합니다
+                    </p>
+                  </div>
+                </Label>
+              </div>
+
+              <div className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-accent/5 transition-colors">
+                <Checkbox
+                  id="hasVideo"
+                  checked={presentationInfo.hasVideo}
+                  onCheckedChange={(checked) =>
+                    setPresentationInfo({ ...presentationInfo, hasVideo: checked as boolean })
+                  }
+                />
+                <Label htmlFor="hasVideo" className="cursor-pointer flex-1">
+                  <div>
+                    <p className="font-medium">동영상 상영</p>
+                    <p className="text-sm text-muted-foreground">
+                      발표에 동영상이 포함되어 있습니다
+                    </p>
+                  </div>
+                </Label>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="specialRequirements">특별 요청사항</Label>
+              <Textarea
+                id="specialRequirements"
+                placeholder="추가로 필요한 장비나 요청사항을 입력해주세요"
+                value={presentationInfo.specialRequirements}
+                onChange={(e) =>
+                  setPresentationInfo({ ...presentationInfo, specialRequirements: e.target.value })
+                }
+                rows={4}
+                className="resize-none"
+              />
+              <p className="text-xs text-muted-foreground">
+                예: 레이저 포인터, 화이트보드, 추가 마이크 등
+              </p>
+            </div>
+
+            <Button type="submit" className="w-full">
+              저장
+            </Button>
+          </form>
         </CardContent>
       </Card>
     </div>
