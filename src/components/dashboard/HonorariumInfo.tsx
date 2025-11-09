@@ -1,13 +1,14 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Upload, FileText, Trash2, Pen, Copy, Download } from "lucide-react";
+import { Upload, FileText, Trash2, Pen, Copy, Download, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import SignatureCanvas from "react-signature-canvas";
+import { supabase } from "@/integrations/supabase/client";
 
 const HonorariumInfo = () => {
   const [recipientType, setRecipientType] = useState<string>("본인");
@@ -18,6 +19,7 @@ const HonorariumInfo = () => {
   const [signatureMethod, setSignatureMethod] = useState<"upload" | "draw">("draw");
   const [signatureFile, setSignatureFile] = useState<File | null>(null);
   const [receiptFiles, setReceiptFiles] = useState<File[]>([]);
+  const [receiptDeadline, setReceiptDeadline] = useState<string>("");
   const signatureRef = useRef<SignatureCanvas>(null);
   
   // TODO: 실제로는 DB에서 가져와야 함
@@ -41,6 +43,58 @@ const HonorariumInfo = () => {
   ];
   const maxReceiptAmount = transportationLimit; // 만원 단위
   const receiptValidDates = "2024년 11월 1일 ~ 2024년 11월 10일"; // TODO: 행사일 기준으로 동적으로 계산
+
+  useEffect(() => {
+    loadReceiptDeadline();
+  }, []);
+
+  const loadReceiptDeadline = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) return;
+
+      // speaker_sessions에서 프로젝트 ID 가져오기
+      const { data: session } = await supabase
+        .from('speaker_sessions')
+        .select('project_id, presentation_date')
+        .eq('email', user.email)
+        .maybeSingle();
+
+      if (!session) return;
+
+      // 프로젝트 설정에서 마감일 정보 가져오기
+      const { data: settings } = await supabase
+        .from('project_settings')
+        .select('setting_value')
+        .eq('project_id', session.project_id)
+        .eq('setting_key', 'receipt_upload_deadline')
+        .maybeSingle();
+
+      if (settings?.setting_value) {
+        const value = settings.setting_value as any;
+        
+        if (value.custom_deadline) {
+          // 특정 마감일이 설정된 경우
+          setReceiptDeadline(new Date(value.custom_deadline).toLocaleString('ko-KR'));
+        } else if (session.presentation_date) {
+          // 발표일 기준으로 계산
+          const presentationDate = new Date(session.presentation_date);
+          const deadlineDays = value.deadline_days || 3;
+          const deadlineDate = new Date(presentationDate);
+          deadlineDate.setDate(deadlineDate.getDate() + deadlineDays);
+          
+          const includeWeekends = value.include_weekends ?? true;
+          const deadlineText = `강연 종료 후 ${deadlineDays}일 이내${includeWeekends ? '(주말, 휴일 포함)' : '(영업일 기준)'}`;
+          setReceiptDeadline(deadlineText);
+        } else {
+          // 기본값
+          setReceiptDeadline("강연 종료 후 3일 이내(주말, 휴일 포함)");
+        }
+      }
+    } catch (error) {
+      console.error('Load receipt deadline error:', error);
+    }
+  };
 
   const handleFileSelect = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -551,16 +605,32 @@ const HonorariumInfo = () => {
 
       {/* 영수증 첨부 - 교통비 제공시에만 표시 */}
       {transportationProvided && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">교통비 영수증</CardTitle>
-            <CardDescription className="space-y-1">
-              <p>교통비 실비 지급을 위해 영수증을 첨부해 주세요</p>
-              <p className="text-destructive font-medium">
-                강연 종료 후 3일 이내(주말, 휴일 포함)에 본 포털에 접속하시면 업로드가 가능합니다.
-              </p>
-            </CardDescription>
-          </CardHeader>
+        <>
+          {/* 마감 일정 카드 */}
+          <Card className="border-accent/20">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Calendar className="h-5 w-5 text-accent" />
+                영수증 업로드 마감 일정
+              </CardTitle>
+              <CardDescription>
+                {receiptDeadline && (
+                  <span className="font-semibold text-destructive">{receiptDeadline}</span>
+                )}
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">교통비 영수증</CardTitle>
+              <CardDescription className="space-y-1">
+                <p>교통비 실비 지급을 위해 영수증을 첨부해 주세요</p>
+                <p className="text-destructive font-medium">
+                  {receiptDeadline || "강연 종료 후 3일 이내(주말, 휴일 포함)"}에 본 포털에 접속하시면 업로드가 가능합니다.
+                </p>
+              </CardDescription>
+            </CardHeader>
           <CardContent className="space-y-4">
             {/* 영수증 인정 안내 */}
             <div className="space-y-4 p-4 bg-muted/30 rounded-lg text-sm">
@@ -646,6 +716,7 @@ const HonorariumInfo = () => {
             )}
           </CardContent>
         </Card>
+        </>
       )}
 
       <Card className="border-accent/20">

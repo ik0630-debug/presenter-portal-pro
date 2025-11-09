@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Plus, Edit, Trash2, Calendar, Settings, FileText } from "lucide-react";
+import { ArrowLeft, Plus, Edit, Trash2, Calendar, Settings, FileText, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -326,6 +326,15 @@ const AdminProjects = () => {
                       >
                         <Settings className="h-4 w-4" />
                         교통비 설정
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate(`/admin/projects/${project.id}/receipt-settings`)}
+                        className="gap-2"
+                      >
+                        <Clock className="h-4 w-4" />
+                        마감일 설정
                       </Button>
                       <Button
                         variant="outline"
