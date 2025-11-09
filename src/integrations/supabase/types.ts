@@ -463,6 +463,81 @@ export type Database = {
           },
         ]
       }
+      transportation_info: {
+        Row: {
+          actual_cost: number | null
+          airline: string | null
+          arrival_date: string | null
+          arrival_location: string | null
+          arrival_time: string | null
+          created_at: string
+          departure_date: string | null
+          departure_location: string | null
+          departure_time: string | null
+          estimated_cost: number | null
+          flight_number: string | null
+          id: string
+          notes: string | null
+          receipt_submitted: boolean
+          requires_reimbursement: boolean
+          seat_number: string | null
+          session_id: string
+          train_number: string | null
+          transportation_method: string
+          updated_at: string
+          vehicle_number: string | null
+          vehicle_type: string | null
+        }
+        Insert: {
+          actual_cost?: number | null
+          airline?: string | null
+          arrival_date?: string | null
+          arrival_location?: string | null
+          arrival_time?: string | null
+          created_at?: string
+          departure_date?: string | null
+          departure_location?: string | null
+          departure_time?: string | null
+          estimated_cost?: number | null
+          flight_number?: string | null
+          id?: string
+          notes?: string | null
+          receipt_submitted?: boolean
+          requires_reimbursement?: boolean
+          seat_number?: string | null
+          session_id: string
+          train_number?: string | null
+          transportation_method: string
+          updated_at?: string
+          vehicle_number?: string | null
+          vehicle_type?: string | null
+        }
+        Update: {
+          actual_cost?: number | null
+          airline?: string | null
+          arrival_date?: string | null
+          arrival_location?: string | null
+          arrival_time?: string | null
+          created_at?: string
+          departure_date?: string | null
+          departure_location?: string | null
+          departure_time?: string | null
+          estimated_cost?: number | null
+          flight_number?: string | null
+          id?: string
+          notes?: string | null
+          receipt_submitted?: boolean
+          requires_reimbursement?: boolean
+          seat_number?: string | null
+          session_id?: string
+          train_number?: string | null
+          transportation_method?: string
+          updated_at?: string
+          vehicle_number?: string | null
+          vehicle_type?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
