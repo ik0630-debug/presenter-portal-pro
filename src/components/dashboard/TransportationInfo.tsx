@@ -569,8 +569,30 @@ const TransportationInfo = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* 영수증 인정 안내 */}
+            <div className="space-y-4 p-4 bg-muted/30 rounded-lg text-sm">
+              <div className="space-y-2">
+                <h4 className="font-semibold">인정항목</h4>
+                <ul className="list-disc list-inside space-y-1 text-muted-foreground ml-2">
+                  <li>국내 항공</li>
+                  <li>기차</li>
+                  <li>고속(시외)버스</li>
+                  <li>택시 영수증(시내 이동에 한하며, 최대 2만원 한도)</li>
+                  <li>톨게이트 영수증</li>
+                </ul>
+              </div>
+              
+              <div className="space-y-2">
+                <h4 className="font-semibold">불인정항목</h4>
+                <ul className="list-disc list-inside space-y-1 text-muted-foreground ml-2">
+                  <li>타인 명의로 발행된 항공권</li>
+                  <li>유류비(주유비)</li>
+                </ul>
+              </div>
+            </div>
+
             {additionalNotes && (
-              <div className="p-4 bg-muted/30 rounded-lg text-sm">
+              <div className="p-4 bg-accent/10 rounded-lg text-sm border border-accent/20">
                 <p className="whitespace-pre-line">{additionalNotes}</p>
               </div>
             )}

@@ -18,8 +18,6 @@ const HonorariumInfo = () => {
   const [agentConsent, setAgentConsent] = useState(false);
   const [signatureMethod, setSignatureMethod] = useState<"upload" | "draw">("draw");
   const [signatureFile, setSignatureFile] = useState<File | null>(null);
-  const [receiptFiles, setReceiptFiles] = useState<File[]>([]);
-  const [receiptDeadline, setReceiptDeadline] = useState<string>("");
   const signatureRef = useRef<SignatureCanvas>(null);
   
   // TODO: 실제로는 DB에서 가져와야 함
@@ -28,73 +26,6 @@ const HonorariumInfo = () => {
   const honorariumAmount = 1000000;
   const transportationProvided = true; // TODO: speaker_sessions 또는 project_settings에서 가져와야 함
   const transportationLimit = 30; // 만원 단위, TODO: DB에서 가져와야 함
-  
-  // TODO: DB의 project_settings에서 가져와야 함 (동적 필드)
-  const acceptedItems = [
-    "국내 항공",
-    "기차",
-    "고속(시외)버스",
-    "택시 영수증(시내 이동에 한하며, 최대 2만원 한도)",
-    "톨게이트 영수증"
-  ];
-  const rejectedItems = [
-    "타인 명의로 발행된 항공권",
-    "유류비(주유비)"
-  ];
-  const maxReceiptAmount = transportationLimit; // 만원 단위
-  const receiptValidDates = "2024년 11월 1일 ~ 2024년 11월 10일"; // TODO: 행사일 기준으로 동적으로 계산
-
-  useEffect(() => {
-    loadReceiptDeadline();
-  }, []);
-
-  const loadReceiptDeadline = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user?.email) return;
-
-      // speaker_sessions에서 프로젝트 ID 가져오기
-      const { data: session } = await supabase
-        .from('speaker_sessions')
-        .select('project_id, presentation_date')
-        .eq('email', user.email)
-        .maybeSingle();
-
-      if (!session) return;
-
-      // 프로젝트 설정에서 마감일 정보 가져오기
-      const { data: settings } = await supabase
-        .from('project_settings')
-        .select('setting_value')
-        .eq('project_id', session.project_id)
-        .eq('setting_key', 'receipt_upload_deadline')
-        .maybeSingle();
-
-      if (settings?.setting_value) {
-        const value = settings.setting_value as any;
-        
-        if (value.custom_deadline) {
-          // 특정 마감일이 설정된 경우
-          setReceiptDeadline(new Date(value.custom_deadline).toLocaleString('ko-KR'));
-        } else if (session.presentation_date) {
-          // 발표일 기준으로 계산
-          const presentationDate = new Date(session.presentation_date);
-          const deadlineDays = value.deadline_days || 3;
-          const deadlineDate = new Date(presentationDate);
-          deadlineDate.setDate(deadlineDate.getDate() + deadlineDays);
-          
-          const includeWeekends = value.include_weekends ?? true;
-          const deadlineText = `강연 종료 후 ${deadlineDays}일 이내${includeWeekends ? '(주말, 휴일 포함)' : '(영업일 기준)'}`;
-          setReceiptDeadline(deadlineText);
-        } else {
-          // 기본값
-          setReceiptDeadline("강연 종료 후 3일 이내(주말, 휴일 포함)");
-        }
-      }
-    } catch (error) {
-      console.error('Load receipt deadline error:', error);
-    }
-  };
 
   const handleFileSelect = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -153,27 +84,6 @@ const HonorariumInfo = () => {
   const handleDownloadBusinessLicense = () => {
     // TODO: 실제 사업자등록증 다운로드 구현
     toast.info("사업자등록증 다운로드 기능은 준비 중입니다.");
-  };
-
-  const handleReceiptFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    const validFiles = files.filter(file => {
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error(`${file.name}: 파일 크기는 10MB를 초과할 수 없습니다.`);
-        return false;
-      }
-      return true;
-    });
-    
-    setReceiptFiles(prev => [...prev, ...validFiles]);
-    if (validFiles.length > 0) {
-      toast.success(`${validFiles.length}개의 영수증 파일이 추가되었습니다.`);
-    }
-  };
-
-  const handleRemoveReceiptFile = (index: number) => {
-    setReceiptFiles(prev => prev.filter((_, i) => i !== index));
-    toast.info("영수증 파일이 제거되었습니다.");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -603,121 +513,6 @@ const HonorariumInfo = () => {
         </Card>
       )}
 
-      {/* 영수증 첨부 - 교통비 제공시에만 표시 */}
-      {transportationProvided && (
-        <>
-          {/* 마감 일정 카드 */}
-          <Card className="border-accent/20">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Calendar className="h-5 w-5 text-accent" />
-                영수증 업로드 마감 일정
-              </CardTitle>
-              <CardDescription>
-                {receiptDeadline && (
-                  <span className="font-semibold text-destructive">{receiptDeadline}</span>
-                )}
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">교통비 영수증</CardTitle>
-              <CardDescription className="space-y-1">
-                <p>교통비 실비 지급을 위해 영수증을 첨부해 주세요</p>
-                <p className="text-destructive font-medium">
-                  {receiptDeadline || "강연 종료 후 3일 이내(주말, 휴일 포함)"}에 본 포털에 접속하시면 업로드가 가능합니다.
-                </p>
-              </CardDescription>
-            </CardHeader>
-          <CardContent className="space-y-4">
-            {/* 영수증 인정 안내 */}
-            <div className="space-y-4 p-4 bg-muted/30 rounded-lg text-sm">
-              <div className="space-y-2">
-                <h4 className="font-semibold">인정항목</h4>
-                <ul className="list-disc list-inside space-y-1 text-muted-foreground ml-2">
-                  {acceptedItems.map((item, index) => (
-                    <li key={index}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-              
-              <div className="space-y-2">
-                <h4 className="font-semibold">불인정항목</h4>
-                <ul className="list-disc list-inside space-y-1 text-muted-foreground ml-2">
-                  {rejectedItems.map((item, index) => (
-                    <li key={index}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="space-y-2">
-                <h4 className="font-semibold">최대 금액</h4>
-                <p className="text-muted-foreground ml-2">{maxReceiptAmount}만원</p>
-              </div>
-
-              <div className="space-y-2">
-                <h4 className="font-semibold">영수증 인정 일자</h4>
-                <p className="text-muted-foreground ml-2">{receiptValidDates}</p>
-                <p className="text-xs text-muted-foreground ml-2">(해당 일자에 발행된 영수증에 한해 인정됩니다.)</p>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>영수증 파일</Label>
-              <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary/50 transition-colors">
-                <label htmlFor="receipt-upload" className="cursor-pointer">
-                  <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground mb-1">
-                    클릭하여 영수증 파일 선택
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    JPG, PNG, PDF (10MB 이내, 여러 파일 선택 가능)
-                  </p>
-                  <input
-                    id="receipt-upload"
-                    type="file"
-                    className="hidden"
-                    accept="image/*,.pdf"
-                    multiple
-                    onChange={handleReceiptFileSelect}
-                  />
-                </label>
-              </div>
-            </div>
-
-            {/* 업로드된 영수증 목록 */}
-            {receiptFiles.length > 0 && (
-              <div className="space-y-2">
-                <Label>첨부된 영수증 ({receiptFiles.length}개)</Label>
-                <div className="space-y-2">
-                  {receiptFiles.map((file, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-3 bg-accent/50 rounded-lg"
-                    >
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-5 w-5 text-primary" />
-                        <span className="text-sm font-medium">{file.name}</span>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRemoveReceiptFile(index)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-        </>
-      )}
 
       <Card className="border-accent/20">
         <CardContent className="pt-6">
