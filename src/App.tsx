@@ -12,6 +12,7 @@ import AdminProjects from "./pages/admin/Projects";
 import TransportationSettings from "./pages/admin/TransportationSettings";
 import PresentationFiles from "./pages/admin/PresentationFiles";
 import PresentationFieldSettings from "./pages/admin/PresentationFieldSettings";
+import ConsentFieldSettings from "./pages/admin/ConsentFieldSettings";
 import ReceiptSettings from "./pages/admin/ReceiptSettings";
 import NotFound from "./pages/NotFound";
 
@@ -33,6 +34,7 @@ const App = () => (
         <Route path="/admin/projects/:projectId/transportation" element={<TransportationSettings />} />
         <Route path="/admin/projects/:projectId/presentations" element={<PresentationFiles />} />
         <Route path="/admin/projects/:projectId/presentation-fields" element={<PresentationFieldSettings />} />
+        <Route path="/admin/projects/:projectId/consent-fields" element={<ConsentFieldSettings />} />
         <Route path="/admin/projects/:projectId/receipt-settings" element={<ReceiptSettings />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

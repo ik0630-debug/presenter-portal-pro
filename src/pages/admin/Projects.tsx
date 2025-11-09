@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Plus, Edit, Trash2, Calendar, Settings, FileText, Clock, ListChecks } from "lucide-react";
+import { ArrowLeft, Plus, Edit, Trash2, Calendar, Settings, FileText, Clock, ListChecks, FileCheck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -344,6 +344,15 @@ const AdminProjects = () => {
                       >
                         <ListChecks className="h-4 w-4" />
                         발표 정보 필드
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate(`/admin/projects/${project.id}/consent-fields`)}
+                        className="gap-2"
+                      >
+                        <FileCheck className="h-4 w-4" />
+                        동의서 설정
                       </Button>
                       <Button
                         variant="outline"

@@ -41,11 +41,56 @@ export type Database = {
         }
         Relationships: []
       }
+      consent_fields: {
+        Row: {
+          content: string
+          created_at: string | null
+          display_order: number | null
+          field_key: string
+          id: string
+          is_required: boolean | null
+          project_id: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          display_order?: number | null
+          field_key: string
+          id?: string
+          is_required?: boolean | null
+          project_id: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          display_order?: number | null
+          field_key?: string
+          id?: string
+          is_required?: boolean | null
+          project_id?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consent_fields_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       consent_records: {
         Row: {
           consent_date: string | null
           copyright_consent: boolean | null
           created_at: string | null
+          custom_consents: Json | null
           distribution_consent: boolean | null
           id: string
           portrait_consent: boolean | null
@@ -59,6 +104,7 @@ export type Database = {
           consent_date?: string | null
           copyright_consent?: boolean | null
           created_at?: string | null
+          custom_consents?: Json | null
           distribution_consent?: boolean | null
           id?: string
           portrait_consent?: boolean | null
@@ -72,6 +118,7 @@ export type Database = {
           consent_date?: string | null
           copyright_consent?: boolean | null
           created_at?: string | null
+          custom_consents?: Json | null
           distribution_consent?: boolean | null
           id?: string
           portrait_consent?: boolean | null
