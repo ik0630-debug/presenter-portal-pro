@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,13 +6,73 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Upload, FileText, Trash2, User } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+
+interface ProfileField {
+  key: string;
+  label: string;
+  placeholder: string;
+  required: boolean;
+}
 
 const ProfileUpload = () => {
   const [profileImage, setProfileImage] = useState<File | null>(null);
   const [profileImagePreview, setProfileImagePreview] = useState<string | null>(null);
   const [cvFile, setCvFile] = useState<File | null>(null);
-  const [bio, setBio] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // 동적 필드 정의
+  const profileFields: ProfileField[] = [
+    { key: "speaker_name", label: "이름", placeholder: "홍길동", required: true },
+    { key: "organization", label: "소속", placeholder: "서울대학교", required: true },
+    { key: "department", label: "부서", placeholder: "컴퓨터공학과", required: false },
+    { key: "position", label: "직함", placeholder: "교수", required: true },
+  ];
+
+  const [profileData, setProfileData] = useState<Record<string, string>>({});
   const [career, setCareer] = useState("");
+
+  useEffect(() => {
+    loadSpeakerData();
+  }, []);
+
+  const loadSpeakerData = async () => {
+    try {
+      setIsLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user?.email) {
+        toast.error("로그인 정보를 찾을 수 없습니다.");
+        return;
+      }
+
+      const { data: session, error } = await supabase
+        .from("speaker_sessions")
+        .select("speaker_name, organization, department, position")
+        .eq("email", user.email)
+        .single();
+
+      if (error) throw error;
+
+      if (session) {
+        setProfileData({
+          speaker_name: session.speaker_name || "",
+          organization: session.organization || "",
+          department: session.department || "",
+          position: session.position || "",
+        });
+      }
+    } catch (error) {
+      console.error("Error loading speaker data:", error);
+      toast.error("발표자 정보를 불러오는데 실패했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleFieldChange = (key: string, value: string) => {
+    setProfileData(prev => ({ ...prev, [key]: value }));
+  };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -67,13 +127,48 @@ const ProfileUpload = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!bio || !career) {
-      toast.error("모든 필수 정보를 입력해주세요.");
+    // 필수 필드 검증
+    const missingFields = profileFields
+      .filter(field => field.required && !profileData[field.key]?.trim())
+      .map(field => field.label);
+
+    if (missingFields.length > 0) {
+      toast.error(`필수 항목을 입력해주세요: ${missingFields.join(", ")}`);
       return;
     }
 
-    // TODO: DB 저장 및 파일 업로드
-    toast.success("프로필 정보가 저장되었습니다.");
+    if (!career) {
+      toast.error("주요 경력을 입력해주세요.");
+      return;
+    }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user?.email) {
+        toast.error("로그인 정보를 찾을 수 없습니다.");
+        return;
+      }
+
+      // speaker_sessions 테이블 업데이트
+      const { error } = await supabase
+        .from("speaker_sessions")
+        .update({
+          speaker_name: profileData.speaker_name,
+          organization: profileData.organization,
+          department: profileData.department,
+          position: profileData.position,
+        })
+        .eq("email", user.email);
+
+      if (error) throw error;
+
+      // TODO: CV 파일 업로드 및 경력 정보 저장
+      toast.success("프로필 정보가 저장되었습니다.");
+    } catch (error) {
+      console.error("Error saving profile:", error);
+      toast.error("프로필 정보 저장에 실패했습니다.");
+    }
   };
 
   return (
@@ -126,24 +221,28 @@ const ProfileUpload = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">이력 정보</CardTitle>
+          <CardTitle className="text-lg">공식 직함</CardTitle>
           <CardDescription>
-            발표자 소개에 사용될 이력을 입력해주세요
+            연사 소개 페이지, 프로그램북, 명찰 등에 적용할 공식 직함을 입력하여 주십시오.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="bio">약력 / 소개 *</Label>
-              <Textarea
-                id="bio"
-                placeholder="예) 서울대학교 컴퓨터공학과 교수&#10;AI 및 머신러닝 전문가"
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                required
-                rows={4}
-              />
-            </div>
+            {profileFields.map((field) => (
+              <div key={field.key} className="space-y-2">
+                <Label htmlFor={field.key}>
+                  {field.label} {field.required && "*"}
+                </Label>
+                <Input
+                  id={field.key}
+                  placeholder={field.placeholder}
+                  value={profileData[field.key] || ""}
+                  onChange={(e) => handleFieldChange(field.key, e.target.value)}
+                  required={field.required}
+                  disabled={isLoading}
+                />
+              </div>
+            ))}
 
             <div className="space-y-2">
               <Label htmlFor="career">주요 경력 *</Label>
@@ -154,6 +253,7 @@ const ProfileUpload = () => {
                 onChange={(e) => setCareer(e.target.value)}
                 required
                 rows={4}
+                disabled={isLoading}
               />
             </div>
           </form>

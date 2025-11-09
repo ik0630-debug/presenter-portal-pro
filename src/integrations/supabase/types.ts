@@ -146,10 +146,13 @@ export type Database = {
       speaker_sessions: {
         Row: {
           created_at: string | null
+          department: string | null
           email: string
           event_name: string | null
           external_supplier_id: string | null
           id: string
+          organization: string | null
+          position: string | null
           presentation_date: string | null
           speaker_id: string
           speaker_name: string
@@ -157,10 +160,13 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          department?: string | null
           email: string
           event_name?: string | null
           external_supplier_id?: string | null
           id?: string
+          organization?: string | null
+          position?: string | null
           presentation_date?: string | null
           speaker_id: string
           speaker_name: string
@@ -168,10 +174,13 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          department?: string | null
           email?: string
           event_name?: string | null
           external_supplier_id?: string | null
           id?: string
+          organization?: string | null
+          position?: string | null
           presentation_date?: string | null
           speaker_id?: string
           speaker_name?: string
