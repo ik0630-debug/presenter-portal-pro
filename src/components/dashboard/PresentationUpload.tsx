@@ -141,7 +141,8 @@ const PresentationUpload = () => {
     setIsUploading(true);
     try {
       // 각 파일을 Storage에 업로드하고 DB에 저장
-      for (const uploadedFile of uploadedFiles) {
+      for (let i = 0; i < uploadedFiles.length; i++) {
+        const uploadedFile = uploadedFiles[i];
         if (uploadedFile.id) continue; // 이미 업로드된 파일은 건너뛰기
 
         const file = uploadedFile.file;
@@ -163,7 +164,7 @@ const PresentationUpload = () => {
           continue;
         }
 
-        // DB에 파일 정보 저장
+        // DB에 파일 정보 저장 (우선 송출 파일 정보 포함)
         const { error: dbError } = await supabase
           .from('presentation_files')
           .insert({
@@ -172,6 +173,7 @@ const PresentationUpload = () => {
             file_path: filePath,
             file_type: file.type,
             file_size: file.size,
+            is_primary: uploadedFile.isSelected, // 우선 송출 파일 여부 저장
           });
 
         if (dbError) {

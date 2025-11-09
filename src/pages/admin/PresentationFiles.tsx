@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Download, FileText, Loader2, Calendar, User } from "lucide-react";
+import { ArrowLeft, Download, FileText, Loader2, Calendar, User, Star } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -15,6 +15,7 @@ interface PresentationFile {
   file_type: string;
   file_size: number;
   uploaded_at: string;
+  is_primary: boolean;
   session_id: string;
   speaker_name: string;
   speaker_email: string;
@@ -256,6 +257,7 @@ const PresentationFiles = () => {
                         <TableHead>파일명</TableHead>
                         <TableHead>크기</TableHead>
                         <TableHead>업로드 일시</TableHead>
+                        <TableHead>상태</TableHead>
                         <TableHead className="text-right">작업</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -270,6 +272,14 @@ const PresentationFiles = () => {
                           </TableCell>
                           <TableCell>{formatFileSize(file.file_size)}</TableCell>
                           <TableCell>{formatDate(file.uploaded_at)}</TableCell>
+                          <TableCell>
+                            {file.is_primary && (
+                              <Badge variant="destructive" className="gap-1">
+                                <Star className="h-3 w-3 fill-current" />
+                                우선 송출
+                              </Badge>
+                            )}
+                          </TableCell>
                           <TableCell className="text-right">
                             <Button
                               variant="outline"

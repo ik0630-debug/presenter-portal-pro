@@ -92,6 +92,7 @@ export type Database = {
           file_size: number
           file_type: string
           id: string
+          is_primary: boolean
           session_id: string
           updated_at: string | null
           upload_deadline: string | null
@@ -103,6 +104,7 @@ export type Database = {
           file_size: number
           file_type: string
           id?: string
+          is_primary?: boolean
           session_id: string
           updated_at?: string | null
           upload_deadline?: string | null
@@ -114,6 +116,7 @@ export type Database = {
           file_size?: number
           file_type?: string
           id?: string
+          is_primary?: boolean
           session_id?: string
           updated_at?: string | null
           upload_deadline?: string | null
