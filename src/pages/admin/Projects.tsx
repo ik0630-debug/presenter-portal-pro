@@ -5,7 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Plus, Edit, Trash2, Calendar, Settings, FileText, Clock, ListChecks, FileCheck, MapPinned } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, Plus, Edit, Trash2, Calendar, Settings, FileText, Clock, ListChecks, FileCheck, MapPinned, Download, Users } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -38,10 +39,27 @@ interface Project {
   created_at: string;
 }
 
+interface ExternalProject {
+  id: string;
+  name: string;
+  event_date: string;
+  venue: string;
+  description: string;
+  speakers: Array<{
+    id: string;
+    name: string;
+    email: string;
+    presentation_topic?: string;
+  }>;
+}
+
 const AdminProjects = () => {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [externalProjects, setExternalProjects] = useState<ExternalProject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingExternal, setIsLoadingExternal] = useState(false);
+  const [showExternal, setShowExternal] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [deleteProject, setDeleteProject] = useState<Project | null>(null);
@@ -92,6 +110,67 @@ const AdminProjects = () => {
       console.error(error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchExternalProjects = async () => {
+    setIsLoadingExternal(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('get-external-projects');
+
+      if (error) throw error;
+      
+      console.log('External projects:', data);
+      setExternalProjects(data?.projects || []);
+      setShowExternal(true);
+      toast.success(`${data?.projects?.length || 0}개의 외부 프로젝트를 불러왔습니다.`);
+    } catch (error: any) {
+      toast.error("외부 프로젝트를 불러오는데 실패했습니다.");
+      console.error(error);
+    } finally {
+      setIsLoadingExternal(false);
+    }
+  };
+
+  const syncExternalProject = async (extProject: ExternalProject) => {
+    try {
+      // 1. 로컬 프로젝트 생성
+      const { data: newProject, error: projectError } = await supabase
+        .from('projects')
+        .insert({
+          project_name: extProject.name,
+          event_name: extProject.name,
+          description: extProject.description,
+          start_date: extProject.event_date,
+        })
+        .select()
+        .single();
+
+      if (projectError) throw projectError;
+
+      // 2. 연사 세션 생성
+      if (extProject.speakers && extProject.speakers.length > 0) {
+        const sessions = extProject.speakers.map(speaker => ({
+          project_id: newProject.id,
+          speaker_id: speaker.id,
+          speaker_name: speaker.name,
+          email: speaker.email,
+          event_name: extProject.name,
+          presentation_date: extProject.event_date,
+        }));
+
+        const { error: sessionsError } = await supabase
+          .from('speaker_sessions')
+          .insert(sessions);
+
+        if (sessionsError) throw sessionsError;
+      }
+
+      toast.success(`'${extProject.name}' 프로젝트가 동기화되었습니다.`);
+      fetchProjects();
+    } catch (error: any) {
+      toast.error(error.message || "동기화 중 오류가 발생했습니다.");
+      console.error(error);
     }
   };
 
@@ -203,16 +282,26 @@ const AdminProjects = () => {
               프로젝트 관리
             </h1>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={(open) => {
-            setIsDialogOpen(open);
-            if (!open) resetForm();
-          }}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="h-4 w-4" />
-                새 프로젝트
-              </Button>
-            </DialogTrigger>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={fetchExternalProjects}
+              disabled={isLoadingExternal}
+              className="gap-2"
+            >
+              <Download className="h-4 w-4" />
+              {isLoadingExternal ? "불러오는 중..." : "외부 프로젝트 불러오기"}
+            </Button>
+            <Dialog open={isDialogOpen} onOpenChange={(open) => {
+              setIsDialogOpen(open);
+              if (!open) resetForm();
+            }}>
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  새 프로젝트
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-2xl">
               <DialogHeader>
                 <DialogTitle>{editingProject ? "프로젝트 수정" : "새 프로젝트 만들기"}</DialogTitle>
@@ -281,20 +370,79 @@ const AdminProjects = () => {
               </form>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-6xl">
-        {projects.length === 0 ? (
-          <Card className="shadow-elevated">
-            <CardContent className="py-12 text-center">
-              <p className="text-muted-foreground">등록된 프로젝트가 없습니다.</p>
-              <p className="text-sm text-muted-foreground mt-2">새 프로젝트를 만들어보세요.</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-4">
-            {projects.map((project) => (
+      <main className="container mx-auto px-4 py-8 max-w-6xl space-y-6">
+        {/* 외부 프로젝트 섹션 */}
+        {showExternal && externalProjects.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold">외부 시스템 프로젝트</h2>
+              <Button variant="ghost" size="sm" onClick={() => setShowExternal(false)}>
+                숨기기
+              </Button>
+            </div>
+            <div className="grid gap-4">
+              {externalProjects.map((project) => (
+                <Card key={project.id} className="shadow-elevated border-accent/20">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <CardTitle className="text-xl">{project.name}</CardTitle>
+                          <Badge variant="outline">외부</Badge>
+                        </div>
+                        {project.description && (
+                          <p className="text-sm text-muted-foreground mt-2">{project.description}</p>
+                        )}
+                        {project.event_date && (
+                          <div className="flex items-center gap-2 mt-3 text-sm text-muted-foreground">
+                            <Calendar className="h-4 w-4" />
+                            <span>{new Date(project.event_date).toLocaleDateString('ko-KR')}</span>
+                            <span className="mx-2">•</span>
+                            <span>{project.venue}</span>
+                          </div>
+                        )}
+                        {project.speakers && project.speakers.length > 0 && (
+                          <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
+                            <Users className="h-4 w-4" />
+                            <span>{project.speakers.length}명의 연사</span>
+                            <span className="text-xs">
+                              ({project.speakers.map(s => s.name).join(', ')})
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <Button
+                        onClick={() => syncExternalProject(project)}
+                        className="gap-2"
+                      >
+                        <Download className="h-4 w-4" />
+                        동기화
+                      </Button>
+                    </div>
+                  </CardHeader>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 로컬 프로젝트 섹션 */}
+        <div className="space-y-4">
+          <h2 className="text-xl font-bold">등록된 프로젝트</h2>
+          {projects.length === 0 ? (
+            <Card className="shadow-elevated">
+              <CardContent className="py-12 text-center">
+                <p className="text-muted-foreground">등록된 프로젝트가 없습니다.</p>
+                <p className="text-sm text-muted-foreground mt-2">새 프로젝트를 만들거나 외부 프로젝트를 동기화하세요.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4">
+              {projects.map((project) => (
               <Card key={project.id} className="shadow-elevated">
                 <CardHeader>
                   <div className="flex items-start justify-between">
@@ -390,9 +538,10 @@ const AdminProjects = () => {
                   </div>
                 </CardHeader>
               </Card>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </main>
 
       <AlertDialog open={!!deleteProject} onOpenChange={() => setDeleteProject(null)}>
