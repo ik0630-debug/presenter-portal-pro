@@ -499,8 +499,8 @@ const AdminProjects = () => {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
-                            <ChevronDown className="h-5 w-5 transition-transform duration-200" />
-                            <CardTitle className="text-xl">{project.project_name}</CardTitle>
+                            <ChevronDown className="h-5 w-5 transition-transform duration-200 data-[state=open]:rotate-180" />
+                            <CardTitle className="text-xl">{project.project_name || project.event_name}</CardTitle>
                           </div>
                           <div className="ml-7 mt-2 space-y-2">
                             <div className="flex flex-wrap gap-2">
