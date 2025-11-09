@@ -1,20 +1,26 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, File, X, Calendar, Plus } from "lucide-react";
+import { Upload, File, X, Calendar, Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface UploadedFile {
   file: File;
   uploadDate: string;
   isSelected: boolean;
+  id?: string; // DB에서 로드된 파일의 경우
+  filePath?: string; // Storage 경로
 }
 
 const PresentationUpload = () => {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [sessionId, setSessionId] = useState<string>("");
   const deadline = "2024-12-31 23:59";
   
   // 발표 관련 정보 상태
@@ -24,6 +30,80 @@ const PresentationUpload = () => {
     hasVideo: false,
     specialRequirements: "",
   });
+
+  // 세션 정보 및 기존 데이터 로드
+  useEffect(() => {
+    loadSessionData();
+  }, []);
+
+  const loadSessionData = async () => {
+    setIsLoading(true);
+    try {
+      // 현재 사용자 정보 가져오기
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) {
+        toast.error("로그인 정보를 찾을 수 없습니다.");
+        return;
+      }
+
+      // speaker_sessions에서 세션 정보 가져오기
+      const { data: session, error: sessionError } = await supabase
+        .from('speaker_sessions')
+        .select('id')
+        .eq('email', user.email)
+        .maybeSingle();
+
+      if (sessionError) {
+        console.error('Session error:', sessionError);
+        toast.error("세션 정보를 불러오는데 실패했습니다.");
+        return;
+      }
+
+      if (!session) {
+        toast.error("발표자 세션을 찾을 수 없습니다.");
+        return;
+      }
+
+      setSessionId(session.id);
+
+      // 발표 정보 로드
+      const { data: info, error: infoError } = await supabase
+        .from('presentation_info')
+        .select('*')
+        .eq('session_id', session.id)
+        .maybeSingle();
+
+      if (infoError) {
+        console.error('Info error:', infoError);
+      } else if (info) {
+        setPresentationInfo({
+          needsAudio: info.use_audio,
+          ownLaptop: info.use_personal_laptop,
+          hasVideo: info.use_video,
+          specialRequirements: info.special_requests || "",
+        });
+      }
+
+      // 업로드된 파일 목록 로드
+      const { data: files, error: filesError } = await supabase
+        .from('presentation_files')
+        .select('*')
+        .eq('session_id', session.id)
+        .order('uploaded_at', { ascending: false });
+
+      if (filesError) {
+        console.error('Files error:', filesError);
+      } else if (files && files.length > 0) {
+        // TODO: Storage에서 실제 파일을 다운로드하거나 참조를 표시
+        toast.info(`${files.length}개의 업로드된 파일이 있습니다.`);
+      }
+    } catch (error) {
+      console.error('Load error:', error);
+      toast.error("데이터를 불러오는데 실패했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -53,14 +133,70 @@ const PresentationUpload = () => {
       return;
     }
 
-    const selectedFile = uploadedFiles.find(f => f.isSelected);
-    if (!selectedFile) {
-      toast.error("송출할 파일을 선택해주세요.");
+    if (!sessionId) {
+      toast.error("세션 정보를 찾을 수 없습니다.");
       return;
     }
 
-    // TODO: 실제 파일 업로드 로직 구현
-    toast.success("발표자료가 업로드되었습니다.");
+    setIsUploading(true);
+    try {
+      // 각 파일을 Storage에 업로드하고 DB에 저장
+      for (const uploadedFile of uploadedFiles) {
+        if (uploadedFile.id) continue; // 이미 업로드된 파일은 건너뛰기
+
+        const file = uploadedFile.file;
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${sessionId}_${Date.now()}.${fileExt}`;
+        const filePath = `${sessionId}/${fileName}`;
+
+        // Storage에 파일 업로드
+        const { error: uploadError } = await supabase.storage
+          .from('presentations')
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: false
+          });
+
+        if (uploadError) {
+          console.error('Upload error:', uploadError);
+          toast.error(`${file.name} 업로드 실패: ${uploadError.message}`);
+          continue;
+        }
+
+        // DB에 파일 정보 저장
+        const { error: dbError } = await supabase
+          .from('presentation_files')
+          .insert({
+            session_id: sessionId,
+            file_name: file.name,
+            file_path: filePath,
+            file_type: file.type,
+            file_size: file.size,
+          });
+
+        if (dbError) {
+          console.error('DB error:', dbError);
+          toast.error(`${file.name} 정보 저장 실패`);
+          
+          // DB 저장 실패시 업로드된 파일 삭제
+          await supabase.storage
+            .from('presentations')
+            .remove([filePath]);
+          continue;
+        }
+      }
+
+      toast.success("발표자료가 업로드되었습니다.");
+      
+      // 파일 목록 초기화 및 재로드
+      setUploadedFiles([]);
+      await loadSessionData();
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error("파일 업로드 중 오류가 발생했습니다.");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleRemove = (index: number) => {
@@ -77,10 +213,63 @@ const PresentationUpload = () => {
     setUploadedFiles(newFiles);
   };
 
-  const handlePresentationInfoSubmit = (e: React.FormEvent) => {
+  const handlePresentationInfoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: 서버에 정보 저장
-    toast.success("발표 정보가 저장되었습니다.");
+    
+    if (!sessionId) {
+      toast.error("세션 정보를 찾을 수 없습니다.");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // 기존 정보가 있는지 확인
+      const { data: existing } = await supabase
+        .from('presentation_info')
+        .select('id')
+        .eq('session_id', sessionId)
+        .maybeSingle();
+
+      const infoData = {
+        session_id: sessionId,
+        use_audio: presentationInfo.needsAudio,
+        use_personal_laptop: presentationInfo.ownLaptop,
+        use_video: presentationInfo.hasVideo,
+        special_requests: presentationInfo.specialRequirements,
+      };
+
+      if (existing) {
+        // 업데이트
+        const { error } = await supabase
+          .from('presentation_info')
+          .update(infoData)
+          .eq('id', existing.id);
+
+        if (error) {
+          console.error('Update error:', error);
+          toast.error("발표 정보 저장에 실패했습니다.");
+          return;
+        }
+      } else {
+        // 새로 생성
+        const { error } = await supabase
+          .from('presentation_info')
+          .insert(infoData);
+
+        if (error) {
+          console.error('Insert error:', error);
+          toast.error("발표 정보 저장에 실패했습니다.");
+          return;
+        }
+      }
+
+      toast.success("발표 정보가 저장되었습니다.");
+    } catch (error) {
+      console.error('Save error:', error);
+      toast.error("발표 정보 저장 중 오류가 발생했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -180,8 +369,15 @@ const PresentationUpload = () => {
                   accept=".ppt,.pptx,.pdf,.doc,.docx,.hwp,.hwpx,.zip"
                   onChange={handleFileChange}
                 />
-                <Button onClick={handleUpload} className="flex-1">
-                  업로드
+                <Button onClick={handleUpload} className="flex-1" disabled={isUploading}>
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      업로드 중...
+                    </>
+                  ) : (
+                    "업로드"
+                  )}
                 </Button>
               </div>
             </div>
@@ -278,8 +474,15 @@ const PresentationUpload = () => {
               </p>
             </div>
 
-            <Button type="submit" className="w-full">
-              저장
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  저장 중...
+                </>
+              ) : (
+                "저장"
+              )}
             </Button>
           </form>
         </CardContent>
