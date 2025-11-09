@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Plus, Edit, Trash2, Calendar } from "lucide-react";
+import { ArrowLeft, Plus, Edit, Trash2, Calendar, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -318,6 +318,15 @@ const AdminProjects = () => {
                       )}
                     </div>
                     <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate(`/admin/projects/${project.id}/transportation`)}
+                        className="gap-2"
+                      >
+                        <Settings className="h-4 w-4" />
+                        교통비 설정
+                      </Button>
                       <Button
                         variant="outline"
                         size="icon"
