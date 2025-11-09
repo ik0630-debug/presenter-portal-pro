@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.get-organizer-info]
 verify_jwt = false
+
+[functions.get-external-projects]
+verify_jwt = false
+
+[functions.sync-external-projects]
+verify_jwt = false
