@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.sync-external-projects]
 verify_jwt = false
+
+[functions.webhook-sync-project]
+verify_jwt = false
