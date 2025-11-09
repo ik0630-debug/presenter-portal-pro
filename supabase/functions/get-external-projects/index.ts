@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
       .from('projects')
       .select(`
         id,
-        name,
+        project_name,
         event_date,
         venue,
         description,
@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
           };
         }
 
-        console.log(`Project ${project.name}: ${projectSpeakers?.length || 0} speakers`);
+        console.log(`Project ${project.project_name}: ${projectSpeakers?.length || 0} speakers`);
 
         return {
           ...project,
