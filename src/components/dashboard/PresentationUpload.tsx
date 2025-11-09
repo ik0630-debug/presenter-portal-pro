@@ -454,6 +454,9 @@ const PresentationUpload = () => {
                     <p className="text-sm text-muted-foreground">
                       본인의 노트북으로 발표합니다
                     </p>
+                    <p className="text-sm text-destructive font-medium mt-1">
+                      맥(MAC) 사용 시 반드시 개인 맥북(노트북) 지참하셔야 합니다.
+                    </p>
                   </div>
                 </Label>
               </div>
