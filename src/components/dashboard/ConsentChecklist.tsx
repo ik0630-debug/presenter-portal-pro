@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { AlertCircle, CheckCircle2, X, Loader2 } from "lucide-react";
 import SignatureCanvas from "react-signature-canvas";
 import { supabase } from "@/integrations/supabase/client";
+import { upsertResponse, uploadFile } from "@/services/externalApi";
 
 interface ConsentItem {
   id: string;
@@ -16,7 +17,13 @@ interface ConsentItem {
   required: boolean;
 }
 
-const ConsentChecklist = () => {
+interface ConsentChecklistProps {
+  projectId?: string;
+  speakerEmail?: string;
+  onStepComplete?: () => void;
+}
+
+const ConsentChecklist = ({ projectId: urlProjectId, speakerEmail: urlSpeakerEmail, onStepComplete }: ConsentChecklistProps = {}) => {
   const [consents, setConsents] = useState<Record<string, boolean | null>>({});
   const [consentItems, setConsentItems] = useState<ConsentItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -24,7 +31,7 @@ const ConsentChecklist = () => {
   const [isSignatureOpen, setIsSignatureOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sessionId, setSessionId] = useState<string>("");
-  const [projectId, setProjectId] = useState<string>("");
+  const [projectId, setProjectId] = useState<string>(urlProjectId || "");
   const signaturePadRef = useRef<SignatureCanvas>(null);
 
   useEffect(() => {

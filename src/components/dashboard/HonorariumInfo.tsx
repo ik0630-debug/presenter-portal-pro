@@ -9,8 +9,15 @@ import { Upload, FileText, Trash2, Pen, Copy, Download, Calendar } from "lucide-
 import { toast } from "sonner";
 import SignatureCanvas from "react-signature-canvas";
 import { supabase } from "@/integrations/supabase/client";
+import { upsertResponse, uploadFile } from "@/services/externalApi";
 
-const HonorariumInfo = () => {
+interface HonorariumInfoProps {
+  projectId?: string;
+  speakerEmail?: string;
+  onStepComplete?: () => void;
+}
+
+const HonorariumInfo = ({ projectId, speakerEmail, onStepComplete }: HonorariumInfoProps = {}) => {
   const [recipientType, setRecipientType] = useState<string>("본인");
   const [incomeType, setIncomeType] = useState<string>("기타소득");
   const [idFile, setIdFile] = useState<File | null>(null);

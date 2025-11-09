@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Upload, FileText, Trash2, User } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { upsertResponse, uploadFile } from "@/services/externalApi";
 
 interface ProfileField {
   key: string;
@@ -15,7 +16,13 @@ interface ProfileField {
   required: boolean;
 }
 
-const ProfileUpload = () => {
+interface ProfileUploadProps {
+  projectId?: string;
+  speakerEmail?: string;
+  onStepComplete?: () => void;
+}
+
+const ProfileUpload = ({ projectId, speakerEmail, onStepComplete }: ProfileUploadProps = {}) => {
   const [profileImage, setProfileImage] = useState<File | null>(null);
   const [profileImagePreview, setProfileImagePreview] = useState<string | null>(null);
   const [cvFile, setCvFile] = useState<File | null>(null);

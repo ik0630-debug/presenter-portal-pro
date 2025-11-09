@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/useSession";
 import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
 import { ArrivalGuideSettings } from "@/types/database";
+import { getStep6Data } from "@/services/externalApi";
 
 interface ArrivalChecklistItem {
   id: string;
@@ -58,20 +59,54 @@ interface ChecklistItem {
   response_text?: string;
 }
 
-const ArrivalGuide = () => {
+interface ArrivalGuideProps {
+  projectId?: string;
+  speakerEmail?: string;
+  onStepComplete?: () => void;
+}
+
+const ArrivalGuide = ({ projectId: urlProjectId, speakerEmail: urlSpeakerEmail, onStepComplete }: ArrivalGuideProps = {}) => {
   const printRef = useRef<HTMLDivElement>(null);
-  const { session, sessionId, projectId, loading: sessionLoading } = useSession();
+  const { session, sessionId, projectId: sessionProjectId, loading: sessionLoading } = useSession();
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(true);
+  const [externalData, setExternalData] = useState<any>(null);
+
+  // URL 파라미터가 있으면 외부 프로젝트, 없으면 세션 프로젝트
+  const effectiveProjectId = urlProjectId || sessionProjectId;
+  const effectiveSpeakerEmail = urlSpeakerEmail || session?.email;
 
   // Load arrival guide settings
   const { data: guideSettings, loading: guideLoading } = useSupabaseQuery<ArrivalGuideSettings>({
     table: 'arrival_guide_settings',
-    filters: { project_id: projectId },
+    filters: { project_id: effectiveProjectId },
     single: true,
-    enabled: !!projectId,
+    enabled: !!effectiveProjectId && !urlProjectId, // 외부 API 사용시에는 비활성화
   });
 
-  const arrivalData = {
+  useEffect(() => {
+    const loadExternalData = async () => {
+      if (urlProjectId && urlSpeakerEmail) {
+        try {
+          setIsLoadingData(true);
+          const data = await getStep6Data(urlProjectId, urlSpeakerEmail);
+          setExternalData(data);
+        } catch (error) {
+          console.error('Failed to load step 6 data:', error);
+          toast.error('현장안내 데이터를 불러오는데 실패했습니다.');
+        } finally {
+          setIsLoadingData(false);
+        }
+      } else {
+        setIsLoadingData(false);
+      }
+    };
+
+    loadExternalData();
+  }, [urlProjectId, urlSpeakerEmail]);
+
+  // 외부 데이터가 있으면 우선 사용, 없으면 기존 로직
+  const arrivalData = externalData || {
     eventName: session?.event_name || "2024 AI 컨퍼런스",
     venue: guideSettings?.venue_name || "서울 코엑스",
     address: guideSettings?.venue_address || "서울특별시 강남구 영동대로 513",
@@ -92,9 +127,9 @@ const ArrivalGuide = () => {
   // Load checklist items
   const { data: checklistData } = useSupabaseQuery<ArrivalChecklistItem[]>({
     table: 'arrival_checklist_items',
-    filters: { project_id: projectId },
+    filters: { project_id: effectiveProjectId },
     orderBy: { column: 'display_order' },
-    enabled: !!projectId,
+    enabled: !!effectiveProjectId && !urlProjectId,
     onSuccess: async (items) => {
       if (!sessionId || !items?.length) {
         // 샘플 데이터 설정

@@ -20,6 +20,13 @@ import {
   TransportationSettings, 
   TransportationInfo as TransportationInfoType 
 } from "@/types/database";
+import { upsertResponse, uploadFile } from "@/services/externalApi";
+
+interface TransportationInfoProps {
+  projectId?: string;
+  speakerEmail?: string;
+  onStepComplete?: () => void;
+}
 
 const TRANSPORTATION_METHODS = [
   { value: '대중교통', label: '대중교통', icon: Bus },
@@ -29,7 +36,7 @@ const TRANSPORTATION_METHODS = [
   { value: '기타', label: '기타', icon: Navigation },
 ];
 
-const TransportationInfo = () => {
+const TransportationInfo = ({ projectId: urlProjectId, speakerEmail: urlSpeakerEmail, onStepComplete }: TransportationInfoProps = {}) => {
   const { session, sessionId, projectId, loading: sessionLoading } = useSession();
   const [isSaving, setIsSaving] = useState(false);
   const [attendanceResponses, setAttendanceResponses] = useState<Record<string, boolean>>({});

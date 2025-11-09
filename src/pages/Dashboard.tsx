@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LogOut, CheckCircle2, Circle } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import SpeakerConfirmation from "@/components/dashboard/SpeakerConfirmation";
 import ProfileUpload from "@/components/dashboard/ProfileUpload";
 import HonorariumInfo from "@/components/dashboard/HonorariumInfo";
@@ -10,6 +10,8 @@ import PresentationUpload from "@/components/dashboard/PresentationUpload";
 import ConsentChecklist from "@/components/dashboard/ConsentChecklist";
 import ArrivalGuide from "@/components/dashboard/ArrivalGuide";
 import TransportationInfo from "@/components/dashboard/TransportationInfo";
+import { getConfig, getResponse } from "@/services/externalApi";
+import { toast } from "sonner";
 
 const STEPS = [
   { id: 'confirm', label: '발표자 확인', component: null },
@@ -23,26 +25,75 @@ const STEPS = [
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { projectId, speakerEmail } = useParams();
   const [showConfirmation, setShowConfirmation] = useState(true);
   const [currentStep, setCurrentStep] = useState(0);
   const [speakerName, setSpeakerName] = useState("발표자");
+  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const sessionStr = localStorage.getItem('speakerSession');
-    if (sessionStr) {
-      const session = JSON.parse(sessionStr);
-      setSpeakerName(session.name || "발표자");
-    }
-  }, []);
+    const loadPortalData = async () => {
+      // URL 파라미터가 있으면 외부 API 사용
+      if (projectId && speakerEmail) {
+        try {
+          setIsLoading(true);
+          
+          // 설정 조회
+          const config = await getConfig(projectId);
+          if (config.project) {
+            setSpeakerName(speakerEmail.split('@')[0] || "발표자");
+          }
+
+          // 기존 응답 조회
+          const response = await getResponse(projectId, speakerEmail);
+          if (response) {
+            setCompletedSteps(response.completed_steps || []);
+            // 마지막 완료 단계로 이동
+            const lastStep = Math.max(0, ...response.completed_steps);
+            if (lastStep > 0) {
+              setCurrentStep(lastStep);
+              setShowConfirmation(false);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to load portal data:', error);
+          toast.error('데이터를 불러오는데 실패했습니다.');
+        } finally {
+          setIsLoading(false);
+        }
+      } else {
+        // 기존 로컬 스토리지 방식 (하위 호환성)
+        const sessionStr = localStorage.getItem('speakerSession');
+        if (sessionStr) {
+          const session = JSON.parse(sessionStr);
+          setSpeakerName(session.name || "발표자");
+        }
+        setIsLoading(false);
+      }
+    };
+
+    loadPortalData();
+  }, [projectId, speakerEmail]);
 
   const handleConfirmation = () => {
     setShowConfirmation(false);
-    setCurrentStep(1); // 프로필 등록 단계로 시작
+    setCurrentStep(1);
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('speakerSession');
-    navigate("/auth");
+    if (projectId && speakerEmail) {
+      navigate("/");
+    } else {
+      localStorage.removeItem('speakerSession');
+      navigate("/auth");
+    }
+  };
+
+  const handleStepComplete = (step: number) => {
+    if (!completedSteps.includes(step)) {
+      setCompletedSteps([...completedSteps, step]);
+    }
   };
 
   const handleNext = () => {
@@ -60,6 +111,17 @@ const Dashboard = () => {
   };
 
   const CurrentStepComponent = STEPS[currentStep]?.component;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">로딩 중...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (showConfirmation) {
     return <SpeakerConfirmation onConfirm={handleConfirmation} />;
@@ -142,7 +204,13 @@ const Dashboard = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {CurrentStepComponent && <CurrentStepComponent />}
+            {CurrentStepComponent && (
+              <CurrentStepComponent
+                projectId={projectId}
+                speakerEmail={speakerEmail}
+                onStepComplete={() => handleStepComplete(currentStep)}
+              />
+            )}
           </CardContent>
         </Card>
 

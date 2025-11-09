@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Upload, File, X, Calendar, Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { upsertResponse, uploadFile } from "@/services/externalApi";
 
 interface UploadedFile {
   file: File;
@@ -26,12 +27,18 @@ interface CustomField {
   is_required: boolean;
 }
 
-const PresentationUpload = () => {
+interface PresentationUploadProps {
+  projectId?: string;
+  speakerEmail?: string;
+  onStepComplete?: () => void;
+}
+
+const PresentationUpload = ({ projectId: urlProjectId, speakerEmail: urlSpeakerEmail, onStepComplete }: PresentationUploadProps = {}) => {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [sessionId, setSessionId] = useState<string>("");
-  const [projectId, setProjectId] = useState<string>("");
+  const [projectId, setProjectId] = useState<string>(urlProjectId || "");
   const [isFocused, setIsFocused] = useState(false);
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, any>>({});
