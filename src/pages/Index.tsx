@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -42,16 +43,41 @@ const Index = () => {
         return;
       }
 
-      const tempSession = {
-        id: speakerId,
-        email: email,
-        name: "테스트 발표자",
-        speakerId: speakerId,
-        eventName: "테스트 행사",
-        presentationDate: new Date().toISOString(),
+      // Query speaker_sessions from database
+      const { data: sessions, error } = await supabase
+        .from('speaker_sessions')
+        .select('*')
+        .eq('email', email)
+        .eq('speaker_id', speakerId);
+
+      if (error) {
+        console.error('Query error:', error);
+        toast.error("로그인 중 오류가 발생했습니다.");
+        setIsLoading(false);
+        return;
+      }
+
+      if (!sessions || sessions.length === 0) {
+        toast.error("일치하는 발표자 정보를 찾을 수 없습니다.");
+        setIsLoading(false);
+        return;
+      }
+
+      const session = sessions[0];
+      const sessionData = {
+        id: session.id,
+        email: session.email,
+        name: session.speaker_name,
+        speakerId: session.speaker_id,
+        eventName: session.event_name || "행사",
+        presentationDate: session.presentation_date,
+        project_id: session.project_id,
+        organization: session.organization,
+        position: session.position,
+        department: session.department,
       };
 
-      localStorage.setItem('speakerSession', JSON.stringify(tempSession));
+      localStorage.setItem('speakerSession', JSON.stringify(sessionData));
       
       toast.success("로그인 성공!");
       navigate("/dashboard");
