@@ -30,7 +30,7 @@ const ProfileUpload = () => {
   ];
 
   const [profileData, setProfileData] = useState<Record<string, string>>({});
-  const [career, setCareer] = useState("");
+  const [careers, setCareers] = useState<string[]>([]);
 
   useEffect(() => {
     loadSpeakerData();
@@ -137,10 +137,6 @@ const ProfileUpload = () => {
       return;
     }
 
-    if (!career) {
-      toast.error("주요 경력을 입력해주세요.");
-      return;
-    }
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -245,16 +241,47 @@ const ProfileUpload = () => {
             ))}
 
             <div className="space-y-2">
-              <Label htmlFor="career">주요 경력 *</Label>
-              <Textarea
-                id="career"
-                placeholder="예) - 2020-현재: 서울대학교 컴퓨터공학과 교수&#10;- 2015-2020: Google AI Research Scientist"
-                value={career}
-                onChange={(e) => setCareer(e.target.value)}
-                required
-                rows={4}
-                disabled={isLoading}
-              />
+              <Label htmlFor="career">주요 경력 (선택)</Label>
+              <p className="text-sm text-muted-foreground">
+                연사 소개시 추가적으로 활용될 대표 경력이나 겸직 중인 직책 있다면 작성해주세요.(중요 순서대로 작성)
+              </p>
+              <div className="space-y-2">
+                {careers.map((career, index) => (
+                  <div key={index} className="flex gap-2">
+                    <Input
+                      value={career}
+                      onChange={(e) => {
+                        const newCareers = [...careers];
+                        newCareers[index] = e.target.value;
+                        setCareers(newCareers);
+                      }}
+                      placeholder="예) 서울대학교 컴퓨터공학과 교수"
+                      disabled={isLoading}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        const newCareers = careers.filter((_, i) => i !== index);
+                        setCareers(newCareers);
+                      }}
+                      disabled={isLoading}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setCareers([...careers, ""])}
+                  disabled={isLoading}
+                  className="w-full"
+                >
+                  + 경력 추가
+                </Button>
+              </div>
             </div>
           </form>
         </CardContent>
