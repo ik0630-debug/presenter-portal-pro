@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Upload, File, X, Calendar, Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,8 +13,17 @@ interface UploadedFile {
   file: File;
   uploadDate: string;
   isSelected: boolean;
-  id?: string; // DB에서 로드된 파일의 경우
-  filePath?: string; // Storage 경로
+  id?: string;
+  filePath?: string;
+}
+
+interface CustomField {
+  id: string;
+  field_key: string;
+  field_label: string;
+  field_type: "checkbox" | "text" | "textarea";
+  field_description?: string;
+  is_required: boolean;
 }
 
 const PresentationUpload = () => {
@@ -21,10 +31,12 @@ const PresentationUpload = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [sessionId, setSessionId] = useState<string>("");
+  const [projectId, setProjectId] = useState<string>("");
   const [isFocused, setIsFocused] = useState(false);
+  const [customFields, setCustomFields] = useState<CustomField[]>([]);
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, any>>({});
   const deadline = "2024-12-31 23:59";
   
-  // 발표 관련 정보 상태
   const [presentationInfo, setPresentationInfo] = useState({
     needsAudio: false,
     ownLaptop: false,
@@ -40,17 +52,15 @@ const PresentationUpload = () => {
   const loadSessionData = async () => {
     setIsLoading(true);
     try {
-      // 현재 사용자 정보 가져오기
       const { data: { user } } = await supabase.auth.getUser();
       if (!user?.email) {
         toast.error("로그인 정보를 찾을 수 없습니다.");
         return;
       }
 
-      // speaker_sessions에서 세션 정보 가져오기
       const { data: session, error: sessionError } = await supabase
         .from('speaker_sessions')
-        .select('id')
+        .select('id, project_id')
         .eq('email', user.email)
         .maybeSingle();
 
@@ -66,6 +76,20 @@ const PresentationUpload = () => {
       }
 
       setSessionId(session.id);
+      setProjectId(session.project_id);
+
+      // 커스텀 필드 로드
+      if (session.project_id) {
+        const { data: fields } = await supabase
+          .from('presentation_fields')
+          .select('*')
+          .eq('project_id', session.project_id)
+          .order('display_order', { ascending: true });
+
+        if (fields) {
+          setCustomFields(fields as CustomField[]);
+        }
+      }
 
       // 발표 정보 로드
       const { data: info, error: infoError } = await supabase
@@ -83,6 +107,11 @@ const PresentationUpload = () => {
           hasVideo: info.use_video,
           specialRequirements: info.special_requests || "",
         });
+        
+        // 커스텀 필드 값 로드
+        if (info.custom_fields && typeof info.custom_fields === 'object') {
+          setCustomFieldValues(info.custom_fields as Record<string, any>);
+        }
       }
 
       // 업로드된 파일 목록 로드
@@ -239,6 +268,7 @@ const PresentationUpload = () => {
         use_personal_laptop: presentationInfo.ownLaptop,
         use_video: presentationInfo.hasVideo,
         special_requests: presentationInfo.specialRequirements,
+        custom_fields: customFieldValues,
       };
 
       if (existing) {
@@ -461,6 +491,63 @@ const PresentationUpload = () => {
                   </div>
                 </Label>
               </div>
+
+              {customFields.map((field) => (
+                <div key={field.id} className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-accent/5 transition-colors">
+                  {field.field_type === "checkbox" ? (
+                    <>
+                      <Checkbox
+                        id={field.field_key}
+                        checked={customFieldValues[field.field_key] || false}
+                        onCheckedChange={(checked) =>
+                          setCustomFieldValues({ ...customFieldValues, [field.field_key]: checked })
+                        }
+                      />
+                      <Label htmlFor={field.field_key} className="cursor-pointer flex-1">
+                        <div>
+                          <p className="font-medium">
+                            {field.field_label}
+                            {field.is_required && <span className="text-destructive ml-1">*</span>}
+                          </p>
+                          {field.field_description && (
+                            <p className="text-sm text-muted-foreground">
+                              {field.field_description}
+                            </p>
+                          )}
+                        </div>
+                      </Label>
+                    </>
+                  ) : (
+                    <div className="flex-1 space-y-2">
+                      <Label htmlFor={field.field_key}>
+                        {field.field_label}
+                        {field.is_required && <span className="text-destructive ml-1">*</span>}
+                      </Label>
+                      {field.field_description && (
+                        <p className="text-sm text-muted-foreground">{field.field_description}</p>
+                      )}
+                      {field.field_type === "text" ? (
+                        <Input
+                          id={field.field_key}
+                          value={customFieldValues[field.field_key] || ""}
+                          onChange={(e) =>
+                            setCustomFieldValues({ ...customFieldValues, [field.field_key]: e.target.value })
+                          }
+                        />
+                      ) : (
+                        <Textarea
+                          id={field.field_key}
+                          value={customFieldValues[field.field_key] || ""}
+                          onChange={(e) =>
+                            setCustomFieldValues({ ...customFieldValues, [field.field_key]: e.target.value })
+                          }
+                          rows={3}
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
 
             <div className="space-y-2">

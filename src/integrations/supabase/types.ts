@@ -85,6 +85,53 @@ export type Database = {
           },
         ]
       }
+      presentation_fields: {
+        Row: {
+          created_at: string | null
+          display_order: number | null
+          field_description: string | null
+          field_key: string
+          field_label: string
+          field_type: string
+          id: string
+          is_required: boolean | null
+          project_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          display_order?: number | null
+          field_description?: string | null
+          field_key: string
+          field_label: string
+          field_type?: string
+          id?: string
+          is_required?: boolean | null
+          project_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          display_order?: number | null
+          field_description?: string | null
+          field_key?: string
+          field_label?: string
+          field_type?: string
+          id?: string
+          is_required?: boolean | null
+          project_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "presentation_fields_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       presentation_files: {
         Row: {
           file_name: string
@@ -135,6 +182,7 @@ export type Database = {
       presentation_info: {
         Row: {
           created_at: string | null
+          custom_fields: Json | null
           id: string
           session_id: string
           special_requests: string | null
@@ -145,6 +193,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          custom_fields?: Json | null
           id?: string
           session_id: string
           special_requests?: string | null
@@ -155,6 +204,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          custom_fields?: Json | null
           id?: string
           session_id?: string
           special_requests?: string | null
