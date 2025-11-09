@@ -206,13 +206,15 @@ const AdminProjects = () => {
     if (!deleteProject) return;
 
     try {
-      const { data, error } = await supabase.functions.invoke('delete-external-project', {
-        body: { id: deleteProject.id }
-      });
+      // 로컬 DB에서만 삭제 (외부 원본 DB는 유지)
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', deleteProject.id);
 
       if (error) throw error;
       
-      toast.success("프로젝트가 삭제되었습니다.");
+      toast.success("프로젝트가 삭제되었습니다. (원본 데이터는 유지됩니다)");
       setDeleteProject(null);
       fetchProjects();
     } catch (error: any) {
