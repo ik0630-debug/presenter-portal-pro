@@ -98,13 +98,11 @@ const AdminProjects = () => {
 
   const fetchProjects = async () => {
     try {
-      const { data, error } = await supabase
-        .from('projects')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const { data, error } = await supabase.functions.invoke('get-external-projects');
 
       if (error) throw error;
-      setProjects(data || []);
+      
+      setProjects(data?.projects || []);
     } catch (error: any) {
       toast.error("프로젝트 목록을 불러오는데 실패했습니다.");
       console.error(error);
@@ -133,45 +131,8 @@ const AdminProjects = () => {
   };
 
   const syncExternalProject = async (extProject: ExternalProject) => {
-    try {
-      // 1. 로컬 프로젝트 생성
-      const { data: newProject, error: projectError } = await supabase
-        .from('projects')
-        .insert({
-          project_name: extProject.name,
-          event_name: extProject.name,
-          description: extProject.description,
-          start_date: extProject.event_date,
-        })
-        .select()
-        .single();
-
-      if (projectError) throw projectError;
-
-      // 2. 연사 세션 생성
-      if (extProject.speakers && extProject.speakers.length > 0) {
-        const sessions = extProject.speakers.map(speaker => ({
-          project_id: newProject.id,
-          speaker_id: speaker.id,
-          speaker_name: speaker.name,
-          email: speaker.email,
-          event_name: extProject.name,
-          presentation_date: extProject.event_date,
-        }));
-
-        const { error: sessionsError } = await supabase
-          .from('speaker_sessions')
-          .insert(sessions);
-
-        if (sessionsError) throw sessionsError;
-      }
-
-      toast.success(`'${extProject.name}' 프로젝트가 동기화되었습니다.`);
-      fetchProjects();
-    } catch (error: any) {
-      toast.error(error.message || "동기화 중 오류가 발생했습니다.");
-      console.error(error);
-    }
+    // 외부 프로젝트는 이미 외부 DB에 있으므로 동기화 불필요
+    toast.success(`'${extProject.name}' 프로젝트는 이미 외부 시스템에 있습니다.`);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -179,29 +140,29 @@ const AdminProjects = () => {
 
     try {
       if (editingProject) {
-        const { error } = await supabase
-          .from('projects')
-          .update({
+        const { data, error } = await supabase.functions.invoke('update-external-project', {
+          body: {
+            id: editingProject.id,
             project_name: formData.project_name,
             event_name: formData.event_name,
             description: formData.description || null,
             start_date: formData.start_date || null,
             end_date: formData.end_date || null,
-          })
-          .eq('id', editingProject.id);
+          }
+        });
 
         if (error) throw error;
         toast.success("프로젝트가 수정되었습니다.");
       } else {
-        const { error } = await supabase
-          .from('projects')
-          .insert({
+        const { data, error } = await supabase.functions.invoke('create-external-project', {
+          body: {
             project_name: formData.project_name,
             event_name: formData.event_name,
             description: formData.description || null,
             start_date: formData.start_date || null,
             end_date: formData.end_date || null,
-          });
+          }
+        });
 
         if (error) throw error;
         toast.success("프로젝트가 생성되었습니다.");
@@ -220,10 +181,9 @@ const AdminProjects = () => {
     if (!deleteProject) return;
 
     try {
-      const { error } = await supabase
-        .from('projects')
-        .delete()
-        .eq('id', deleteProject.id);
+      const { data, error } = await supabase.functions.invoke('delete-external-project', {
+        body: { id: deleteProject.id }
+      });
 
       if (error) throw error;
       
