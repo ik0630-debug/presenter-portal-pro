@@ -36,7 +36,7 @@ const TransportationInfo = () => {
   const [receiptFiles, setReceiptFiles] = useState<File[]>([]);
   
   // Load attendance fields
-  const { data: attendanceFields = [] } = useSupabaseQuery<AttendanceField[]>({
+  const { data: attendanceFields, loading: fieldsLoading } = useSupabaseQuery<AttendanceField[]>({
     table: 'attendance_fields',
     filters: { project_id: projectId },
     orderBy: { column: 'display_order' },
@@ -248,7 +248,7 @@ const TransportationInfo = () => {
   return (
     <div className="space-y-6">
       {/* 행사 참석 정보 섹션 */}
-      {attendanceFields.length > 0 && (
+      {attendanceFields && attendanceFields.length > 0 && (
         <Card className="shadow-elevated">
           <CardHeader>
             <CardTitle>행사 참석 정보</CardTitle>
