@@ -1,9 +1,17 @@
-import { Button } from "@/components/ui/button";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, FileText, Shield, Clock } from "lucide-react";
+import { FileText, Shield, Clock } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast } from "sonner";
 
 const Index = () => {
   const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [speakerId, setSpeakerId] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const features = [
     {
@@ -23,46 +31,124 @@ const Index = () => {
     },
   ];
 
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      if (!email || !speakerId) {
+        toast.error("이메일과 발표자 ID를 모두 입력해주세요.");
+        setIsLoading(false);
+        return;
+      }
+
+      const tempSession = {
+        id: speakerId,
+        email: email,
+        name: "테스트 발표자",
+        speakerId: speakerId,
+        eventName: "테스트 행사",
+        presentationDate: new Date().toISOString(),
+      };
+
+      localStorage.setItem('speakerSession', JSON.stringify(tempSession));
+      
+      toast.success("로그인 성공!");
+      navigate("/dashboard");
+    } catch (error) {
+      console.error('Login error:', error);
+      toast.error("로그인 중 오류가 발생했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
-      <div className="container mx-auto px-4 py-16">
-        <div className="text-center space-y-6 mb-16 animate-fade-in">
-          <h1 className="text-5xl md:text-6xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+      <div className="container mx-auto px-4 py-8 md:py-16">
+        <div className="text-center space-y-4 mb-12 animate-fade-in">
+          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-primary bg-clip-text text-transparent">
             발표자 포털
           </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             국제회의 발표자를 위한 통합 관리 시스템
           </p>
-          <Button
-            size="lg"
-            onClick={() => navigate("/auth")}
-            className="gap-2 text-lg px-8 py-6 shadow-elevated hover:shadow-card transition-all"
-          >
-            시작하기
-            <ArrowRight className="h-5 w-5" />
-          </Button>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-          {features.map((feature, index) => (
-            <div
-              key={index}
-              className="p-6 rounded-xl border bg-card shadow-card hover:shadow-elevated transition-all animate-fade-in"
-              style={{ animationDelay: `${index * 0.1}s` }}
-            >
-              <div className="w-12 h-12 rounded-lg bg-gradient-primary flex items-center justify-center mb-4">
-                <feature.icon className="h-6 w-6 text-white" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
-              <p className="text-muted-foreground text-sm">{feature.description}</p>
+        <div className="grid lg:grid-cols-2 gap-8 max-w-6xl mx-auto items-start">
+          <div className="space-y-6">
+            <div className="grid gap-6">
+              {features.map((feature, index) => (
+                <div
+                  key={index}
+                  className="p-6 rounded-xl border bg-card shadow-card hover:shadow-elevated transition-all animate-fade-in"
+                  style={{ animationDelay: `${index * 0.1}s` }}
+                >
+                  <div className="flex gap-4">
+                    <div className="w-12 h-12 rounded-lg bg-gradient-primary flex items-center justify-center flex-shrink-0">
+                      <feature.icon className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
+                      <p className="text-muted-foreground text-sm">{feature.description}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+            <p className="text-sm text-muted-foreground text-center">
+              문의사항이 있으시면 주최측 담당자에게 연락해주세요
+            </p>
+          </div>
 
-        <div className="mt-16 text-center">
-          <p className="text-sm text-muted-foreground">
-            문의사항이 있으시면 주최측 담당자에게 연락해주세요
-          </p>
+          <div className="lg:sticky lg:top-8">
+            <Card className="shadow-elevated animate-fade-in" style={{ animationDelay: '0.3s' }}>
+              <CardHeader className="space-y-1">
+                <CardTitle className="text-2xl font-bold">로그인</CardTitle>
+                <CardDescription>
+                  발표자 정보를 입력해주세요
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">이메일</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="speaker@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      className="h-11"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="speakerId">발표자 ID</Label>
+                    <Input
+                      id="speakerId"
+                      type="text"
+                      placeholder="SPK-2024-001"
+                      value={speakerId}
+                      onChange={(e) => setSpeakerId(e.target.value)}
+                      required
+                      className="h-11"
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    className="w-full h-11 text-base font-medium"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? "로그인 중..." : "로그인"}
+                  </Button>
+                </form>
+                <div className="mt-6 text-center text-sm text-muted-foreground">
+                  <p>발표자 정보는 이메일로 발송되었습니다.</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>
