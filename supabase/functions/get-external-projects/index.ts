@@ -22,15 +22,7 @@ Deno.serve(async (req) => {
     // Get all projects with their speakers
     const { data: projects, error: projectsError } = await externalSupabase
       .from('projects')
-      .select(`
-        id,
-        project_name,
-        event_date,
-        venue,
-        description,
-        status,
-        created_at
-      `)
+      .select('*')
       .order('created_at', { ascending: false });
 
     if (projectsError) {
@@ -71,7 +63,7 @@ Deno.serve(async (req) => {
           };
         }
 
-        console.log(`Project ${project.project_name}: ${projectSpeakers?.length || 0} speakers`);
+        console.log(`Project ${project.id}: ${projectSpeakers?.length || 0} speakers`);
 
         return {
           ...project,
