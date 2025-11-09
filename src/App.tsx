@@ -13,6 +13,7 @@ import TransportationSettings from "./pages/admin/TransportationSettings";
 import PresentationFiles from "./pages/admin/PresentationFiles";
 import ReceiptSettings from "./pages/admin/ReceiptSettings";
 import PresentationInfoSettings from "./pages/admin/PresentationInfoSettings";
+import SpeakerPresentationInfo from "./pages/admin/SpeakerPresentationInfo";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ const App = () => (
         <Route path="/admin/projects/:projectId/presentations" element={<PresentationFiles />} />
         <Route path="/admin/projects/:projectId/receipt-settings" element={<ReceiptSettings />} />
         <Route path="/admin/projects/:projectId/presentation-info-settings" element={<PresentationInfoSettings />} />
+        <Route path="/admin/projects/:projectId/speaker-presentation-info" element={<SpeakerPresentationInfo />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
