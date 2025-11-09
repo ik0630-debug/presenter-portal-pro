@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from "react";
+import { useRef, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,26 +7,26 @@ import { Textarea } from "@/components/ui/textarea";
 import { CalendarClock, MapPin, Car, Clock, Phone, Download, Printer, MapPinned } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useSession } from "@/hooks/useSession";
+import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
+import { ArrivalGuideSettings } from "@/types/database";
 
-// Temporary type definitions until types.ts is regenerated
-interface ArrivalGuideSettings {
+interface ArrivalChecklistItem {
   id: string;
   project_id: string;
-  venue_name: string;
-  venue_address: string;
-  venue_map_url: string | null;
-  presentation_time: string | null;
-  presentation_room: string | null;
-  check_in_time: string | null;
-  check_in_location: string | null;
-  parking_info: string | null;
-  contact_name: string | null;
-  contact_phone: string | null;
-  contact_email: string | null;
-  emergency_contact: string | null;
-  additional_notes: string | null;
+  item_text: string;
+  display_order: number;
+  requires_response: boolean;
   created_at: string;
   updated_at: string;
+}
+
+interface ChecklistItem {
+  id: string;
+  item_text: string;
+  requires_response: boolean;
+  is_checked?: boolean;
+  response_text?: string;
 }
 
 interface ArrivalChecklistItem {
@@ -59,123 +59,67 @@ interface ChecklistItem {
 
 const ArrivalGuide = () => {
   const printRef = useRef<HTMLDivElement>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [projectId, setProjectId] = useState<string | null>(null);
-  
-  const [arrivalData, setArrivalData] = useState({
-    eventName: "",
-    venue: "",
-    address: "",
-    room: "",
-    time: "",
-    checkInTime: "",
-    checkInLocation: "",
-    parking: "",
-    contact: {
-      name: "",
-      phone: "",
-      email: "",
-    },
-    emergency: "",
-    notes: "",
-  });
-
+  const { session, sessionId, projectId, loading: sessionLoading } = useSession();
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  // Load arrival guide settings
+  const { data: guideSettings, loading: guideLoading } = useSupabaseQuery<ArrivalGuideSettings>({
+    table: 'arrival_guide_settings',
+    filters: { project_id: projectId },
+    single: true,
+    enabled: !!projectId,
+  });
 
-  const loadData = async () => {
-    try {
-      const speakerSession = localStorage.getItem("speakerSession");
-      if (!speakerSession) {
-        return;
-      }
+  const arrivalData = {
+    eventName: session?.event_name || "",
+    venue: guideSettings?.venue_name || "",
+    address: guideSettings?.venue_address || "",
+    room: guideSettings?.presentation_room || "",
+    time: guideSettings?.presentation_time || "",
+    checkInTime: guideSettings?.check_in_time || "",
+    checkInLocation: guideSettings?.check_in_location || "",
+    parking: guideSettings?.parking_info || "",
+    contact: {
+      name: guideSettings?.contact_name || "",
+      phone: guideSettings?.contact_phone || "",
+      email: guideSettings?.contact_email || "",
+    },
+    emergency: guideSettings?.emergency_contact || "",
+    notes: guideSettings?.additional_notes || "",
+  };
 
-      const session = JSON.parse(speakerSession);
-      
-      // Check if project_id exists
-      if (!session.project_id) {
-        console.log("No project_id in session");
-        setIsLoading(false);
-        return;
-      }
-      
-      setSessionId(session.id);
-      setProjectId(session.project_id);
+  // Load checklist items
+  const { data: checklistData } = useSupabaseQuery<ArrivalChecklistItem[]>({
+    table: 'arrival_checklist_items',
+    filters: { project_id: projectId },
+    orderBy: { column: 'display_order' },
+    enabled: !!projectId,
+    onSuccess: async (items) => {
+      if (!sessionId || !items?.length) return;
 
-      // Load arrival guide settings
-      const { data: settings, error: settingsError } = await supabase
-        .from('arrival_guide_settings' as any)
-        .select('*')
-        .eq('project_id', session.project_id)
-        .maybeSingle();
-
-      if (settingsError) throw settingsError;
-
-      if (settings) {
-        const guideSettings = settings as unknown as ArrivalGuideSettings;
-        setArrivalData({
-          eventName: session.event_name || "",
-          venue: guideSettings.venue_name || "",
-          address: guideSettings.venue_address || "",
-          room: guideSettings.presentation_room || "",
-          time: guideSettings.presentation_time || "",
-          checkInTime: guideSettings.check_in_time || "",
-          checkInLocation: guideSettings.check_in_location || "",
-          parking: guideSettings.parking_info || "",
-          contact: {
-            name: guideSettings.contact_name || "",
-            phone: guideSettings.contact_phone || "",
-            email: guideSettings.contact_email || "",
-          },
-          emergency: guideSettings.emergency_contact || "",
-          notes: guideSettings.additional_notes || "",
-        });
-      }
-
-      // Load checklist items
-      const { data: items, error: itemsError } = await supabase
-        .from('arrival_checklist_items' as any)
-        .select('*')
-        .eq('project_id', session.project_id)
-        .order('display_order');
-
-      if (itemsError) throw itemsError;
-
-      if (items && items.length > 0) {
-        const checklistItems = items as unknown as ArrivalChecklistItem[];
-        
+      try {
         // Load speaker responses
-        const { data: responses, error: responsesError } = await supabase
+        const { data: responses } = await supabase
           .from('speaker_checklist_responses' as any)
           .select('*')
-          .eq('session_id', session.id);
+          .eq('session_id', sessionId);
 
-        if (responsesError) throw responsesError;
-
-        const checklistResponses = (responses || []) as unknown as SpeakerChecklistResponse[];
         const responseMap = new Map(
-          checklistResponses.map(r => [r.checklist_item_id, r])
+          (responses || []).map((r: any) => [r.checklist_item_id, r])
         );
 
-        setChecklistItems(checklistItems.map(item => ({
+        setChecklistItems(items.map(item => ({
           id: item.id,
           item_text: item.item_text,
           requires_response: item.requires_response,
           is_checked: responseMap.get(item.id)?.is_checked || false,
           response_text: responseMap.get(item.id)?.response_text || "",
         })));
+      } catch (error) {
+        console.error('Error loading checklist responses:', error);
       }
-    } catch (error: any) {
-      console.error(error);
-      toast.error("데이터를 불러오는데 실패했습니다.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    },
+  });
 
   const handleChecklistChange = async (itemId: string, checked: boolean) => {
     if (!sessionId) return;
@@ -261,10 +205,20 @@ const ArrivalGuide = () => {
     </div>
   );
 
+  const isLoading = sessionLoading || guideLoading;
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <p className="text-muted-foreground">세션 정보를 찾을 수 없습니다.</p>
       </div>
     );
   }
