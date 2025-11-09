@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
 import { CalendarClock, MapPin, Car, Clock, Phone, Download, Printer, MapPinned } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -209,8 +210,30 @@ const ArrivalGuide = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className="space-y-4">
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-4 w-48 mt-2" />
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-32" />
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-32" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-32 w-full" />
+          </CardContent>
+        </Card>
       </div>
     );
   }

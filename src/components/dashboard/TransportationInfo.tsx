@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Car, Train, Plane, Bus, Navigation, Calendar, Upload, FileText, Trash2 } from "lucide-react";
@@ -213,8 +214,25 @@ const TransportationInfo = () => {
 
   if (sessionLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-4 w-full mt-2" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-32 w-full" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-8 w-48" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-24 w-full" />
+          </CardContent>
+        </Card>
       </div>
     );
   }
