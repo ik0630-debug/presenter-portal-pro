@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Upload, FileText, Trash2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Upload, FileText, Trash2, Pen } from "lucide-react";
 import { toast } from "sonner";
+import SignatureCanvas from "react-signature-canvas";
 
 const HonorariumInfo = () => {
   const [recipientType, setRecipientType] = useState<string>("본인");
@@ -15,6 +17,10 @@ const HonorariumInfo = () => {
   const [accountHolder, setAccountHolder] = useState("");
   const [idFile, setIdFile] = useState<File | null>(null);
   const [bankbookFile, setBankbookFile] = useState<File | null>(null);
+  const [agentConsent, setAgentConsent] = useState(false);
+  const [signatureMethod, setSignatureMethod] = useState<"upload" | "draw">("draw");
+  const [signatureFile, setSignatureFile] = useState<File | null>(null);
+  const signatureRef = useRef<SignatureCanvas>(null);
 
   const handleFileSelect = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -48,6 +54,23 @@ const HonorariumInfo = () => {
     }
   };
 
+  const handleSignatureFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("파일 크기는 5MB를 초과할 수 없습니다.");
+        return;
+      }
+      setSignatureFile(file);
+      toast.success("서명 파일이 선택되었습니다.");
+    }
+  };
+
+  const handleClearSignature = () => {
+    signatureRef.current?.clear();
+    toast.info("서명이 지워졌습니다.");
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -59,6 +82,22 @@ const HonorariumInfo = () => {
     if (!idFile || !bankbookFile) {
       toast.error("신분증과 통장사본을 모두 업로드해주세요.");
       return;
+    }
+
+    if (recipientType === "대리인") {
+      if (!agentConsent) {
+        toast.error("대리인 위임 동의가 필요합니다.");
+        return;
+      }
+      
+      const hasSignature = signatureMethod === "upload" 
+        ? signatureFile 
+        : !signatureRef.current?.isEmpty();
+        
+      if (!hasSignature) {
+        toast.error("서명을 완료해주세요.");
+        return;
+      }
     }
 
     // TODO: DB 저장 및 파일 업로드
@@ -125,6 +164,120 @@ const HonorariumInfo = () => {
                     </p>
                   </div>
                 </RadioGroup>
+              </div>
+            )}
+
+            {/* 대리인 동의 및 서명 - 대리인일 경우만 표시 */}
+            {recipientType === "대리인" && (
+              <div className="space-y-4">
+                <div className="p-4 bg-muted/50 rounded-lg space-y-3">
+                  <p className="text-sm leading-relaxed">
+                    본인은 본 행사 참석에 따른 강연료 일체를 대리인이 수령하도록 위임하며, 
+                    강연료 지급을 위한 대리인의 개인정보를 아래와 같이 제공합니다. 
+                    또한 대리인의 개인정보로 세무신고 등이 진행되는 것에 동의하며, 
+                    대리인으로부터 사전 동의를 받았음을 확인합니다.
+                  </p>
+                  <div className="flex items-start space-x-2 pt-2">
+                    <Checkbox
+                      id="agent-consent"
+                      checked={agentConsent}
+                      onCheckedChange={(checked) => setAgentConsent(checked as boolean)}
+                    />
+                    <Label 
+                      htmlFor="agent-consent" 
+                      className="font-medium cursor-pointer leading-tight"
+                    >
+                      위 내용을 확인하였으며 동의합니다. *
+                    </Label>
+                  </div>
+                </div>
+
+                {/* 서명 입력 - 동의 체크 시 표시 */}
+                {agentConsent && (
+                  <div className="space-y-3">
+                    <Label className="text-base font-semibold">서명 *</Label>
+                    
+                    {/* 서명 방법 선택 */}
+                    <RadioGroup value={signatureMethod} onValueChange={(value) => setSignatureMethod(value as "upload" | "draw")}>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="draw" id="signature-draw" />
+                        <Label htmlFor="signature-draw" className="font-normal cursor-pointer">직접 서명하기</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="upload" id="signature-upload" />
+                        <Label htmlFor="signature-upload" className="font-normal cursor-pointer">서명 파일 업로드</Label>
+                      </div>
+                    </RadioGroup>
+
+                    {/* 서명패드 */}
+                    {signatureMethod === "draw" && (
+                      <div className="space-y-2">
+                        <div className="border-2 border-dashed rounded-lg p-2 bg-background">
+                          <SignatureCanvas
+                            ref={signatureRef}
+                            canvasProps={{
+                              className: "w-full h-40 border rounded cursor-crosshair bg-white",
+                            }}
+                            backgroundColor="white"
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleClearSignature}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          서명 지우기
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* 서명 파일 업로드 */}
+                    {signatureMethod === "upload" && (
+                      <div className="space-y-2">
+                        <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary/50 transition-colors">
+                          {signatureFile ? (
+                            <div className="flex items-center justify-between p-3 bg-accent/50 rounded-lg">
+                              <div className="flex items-center gap-2">
+                                <FileText className="h-5 w-5 text-primary" />
+                                <span className="text-sm font-medium">{signatureFile.name}</span>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setSignatureFile(null);
+                                  toast.info("서명 파일이 제거되었습니다.");
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <label htmlFor="signature-file-upload" className="cursor-pointer">
+                              <Pen className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                              <p className="text-sm text-muted-foreground mb-1">
+                                클릭하여 서명 파일 선택
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                JPG, PNG (5MB 이내)
+                              </p>
+                              <input
+                                id="signature-file-upload"
+                                type="file"
+                                className="hidden"
+                                accept="image/*"
+                                onChange={handleSignatureFileSelect}
+                              />
+                            </label>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
