@@ -1,334 +1,256 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Plus, Trash2, MoveRight, MoveLeft, Save } from "lucide-react";
-import { toast } from "sonner";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { Calendar } from "lucide-react";
 
-interface TransportationSettings {
-  accepted_items: string[];
-  rejected_items: string[];
-}
+const AVAILABLE_METHODS = [
+  { value: '대중교통', label: '대중교통' },
+  { value: '자차', label: '자차' },
+  { value: 'KTX', label: 'KTX' },
+  { value: '항공', label: '항공' },
+  { value: '기타', label: '기타' },
+];
 
 const TransportationSettings = () => {
-  const navigate = useNavigate();
-  const { projectId } = useParams();
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [acceptedItems, setAcceptedItems] = useState<string[]>([
-    "국내 항공",
-    "기차",
-    "고속(시외)버스",
-    "택시 영수증(시내 이동에 한하며, 최대 2만원 한도)",
-    "톨게이트 영수증"
-  ]);
-  const [rejectedItems, setRejectedItems] = useState<string[]>([
-    "타인 명의로 발행된 항공권",
-    "유류비(주유비)"
-  ]);
-  const [newItem, setNewItem] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [selectedProject, setSelectedProject] = useState<string>("");
+  const [supportedMethods, setSupportedMethods] = useState<string[]>([]);
+  const [requiresReceipt, setRequiresReceipt] = useState(true);
+  const [receiptDeadline, setReceiptDeadline] = useState("");
+  const [additionalNotes, setAdditionalNotes] = useState("");
 
   useEffect(() => {
-    loadSettings();
-  }, [projectId]);
+    loadProjects();
+  }, []);
 
-  const loadSettings = async () => {
-    if (!projectId) return;
-    
+  useEffect(() => {
+    if (selectedProject) {
+      loadSettings(selectedProject);
+    }
+  }, [selectedProject]);
+
+  const loadProjects = async () => {
     try {
       const { data, error } = await supabase
-        .from('project_settings')
-        .select('setting_value')
-        .eq('project_id', projectId)
-        .eq('setting_key', 'transportation_receipt_rules')
-        .single();
+        .from('projects')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
 
-      if (data && !error) {
-        const settings = data.setting_value as unknown as TransportationSettings;
-        setAcceptedItems(settings.accepted_items || []);
-        setRejectedItems(settings.rejected_items || []);
+      if (error) throw error;
+
+      setProjects(data || []);
+      if (data && data.length > 0) {
+        setSelectedProject(data[0].id);
       }
-    } catch (error) {
-      console.error('Error loading settings:', error);
+    } catch (error: any) {
+      console.error('Error loading projects:', error);
+      toast.error("프로젝트 목록을 불러오는데 실패했습니다.");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const handleSave = async () => {
-    if (!projectId) return;
-
-    setIsSaving(true);
+  const loadSettings = async (projectId: string) => {
     try {
-      const settingValue = {
-        accepted_items: acceptedItems,
-        rejected_items: rejectedItems
-      };
+      const { data, error } = await supabase
+        .from('transportation_settings' as any)
+        .select('*')
+        .eq('project_id', projectId)
+        .maybeSingle();
 
+      if (error && error.code !== 'PGRST116') throw error;
+
+      if (data) {
+        const settings = data as any;
+        setSupportedMethods(settings.supported_methods || []);
+        setRequiresReceipt(settings.requires_receipt ?? true);
+        setReceiptDeadline(settings.receipt_deadline ? new Date(settings.receipt_deadline).toISOString().slice(0, 16) : "");
+        setAdditionalNotes(settings.additional_notes || "");
+      } else {
+        // 기본값 설정
+        setSupportedMethods(['대중교통', '자차', 'KTX', '항공', '기타']);
+        setRequiresReceipt(true);
+        setReceiptDeadline("");
+        setAdditionalNotes("");
+      }
+    } catch (error: any) {
+      console.error('Error loading settings:', error);
+      toast.error("설정을 불러오는데 실패했습니다.");
+    }
+  };
+
+  const handleMethodToggle = (method: string) => {
+    setSupportedMethods(prev => {
+      if (prev.includes(method)) {
+        return prev.filter(m => m !== method);
+      } else {
+        return [...prev, method];
+      }
+    });
+  };
+
+  const handleSave = async () => {
+    if (!selectedProject) {
+      toast.error("프로젝트를 선택해주세요.");
+      return;
+    }
+
+    if (supportedMethods.length === 0) {
+      toast.error("최소 하나의 교통편을 선택해주세요.");
+      return;
+    }
+
+    setSaving(true);
+    try {
       const { error } = await supabase
-        .from('project_settings')
+        .from('transportation_settings' as any)
         .upsert({
-          project_id: projectId,
-          setting_key: 'transportation_receipt_rules',
-          setting_value: settingValue
-        }, {
-          onConflict: 'project_id,setting_key'
+          project_id: selectedProject,
+          supported_methods: supportedMethods,
+          requires_receipt: requiresReceipt,
+          receipt_deadline: receiptDeadline || null,
+          additional_notes: additionalNotes || null,
         });
 
       if (error) throw error;
 
-      toast.success("교통비 영수증 설정이 저장되었습니다.");
-    } catch (error) {
+      toast.success("교통편 설정이 저장되었습니다.");
+    } catch (error: any) {
       console.error('Error saving settings:', error);
-      toast.error("설정 저장에 실패했습니다.");
+      toast.error("저장 중 오류가 발생했습니다.");
     } finally {
-      setIsSaving(false);
+      setSaving(false);
     }
   };
 
-  const handleAddItem = (type: 'accepted' | 'rejected') => {
-    if (!newItem.trim()) {
-      toast.error("항목을 입력해주세요.");
-      return;
-    }
-
-    if (type === 'accepted') {
-      if (acceptedItems.includes(newItem.trim())) {
-        toast.error("이미 존재하는 항목입니다.");
-        return;
-      }
-      setAcceptedItems([...acceptedItems, newItem.trim()]);
-    } else {
-      if (rejectedItems.includes(newItem.trim())) {
-        toast.error("이미 존재하는 항목입니다.");
-        return;
-      }
-      setRejectedItems([...rejectedItems, newItem.trim()]);
-    }
-    
-    setNewItem("");
-    toast.success("항목이 추가되었습니다.");
-  };
-
-  const handleRemoveItem = (type: 'accepted' | 'rejected', index: number) => {
-    if (type === 'accepted') {
-      setAcceptedItems(acceptedItems.filter((_, i) => i !== index));
-    } else {
-      setRejectedItems(rejectedItems.filter((_, i) => i !== index));
-    }
-    toast.success("항목이 삭제되었습니다.");
-  };
-
-  const handleMoveItem = (type: 'accepted' | 'rejected', index: number) => {
-    if (type === 'accepted') {
-      const item = acceptedItems[index];
-      setAcceptedItems(acceptedItems.filter((_, i) => i !== index));
-      setRejectedItems([...rejectedItems, item]);
-      toast.success("불인정 항목으로 이동했습니다.");
-    } else {
-      const item = rejectedItems[index];
-      setRejectedItems(rejectedItems.filter((_, i) => i !== index));
-      setAcceptedItems([...acceptedItems, item]);
-      toast.success("인정 항목으로 이동했습니다.");
-    }
-  };
-
-  const handleEditItem = (type: 'accepted' | 'rejected', index: number, newValue: string) => {
-    if (type === 'accepted') {
-      const updated = [...acceptedItems];
-      updated[index] = newValue;
-      setAcceptedItems(updated);
-    } else {
-      const updated = [...rejectedItems];
-      updated[index] = newValue;
-      setRejectedItems(updated);
-    }
-  };
-
-  if (isLoading) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">로딩 중...</p>
-        </div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10 shadow-card">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate(`/admin/projects`)}
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              돌아가기
-            </Button>
-            <div>
-              <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-                교통비 영수증 항목 설정
-              </h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                인정/불인정 항목을 관리합니다
-              </p>
+    <div className="container mx-auto py-8 px-4 max-w-4xl">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold">교통편 설정</h1>
+        <p className="text-muted-foreground mt-2">
+          발표자에게 제공할 교통편 옵션과 영수증 제출 규정을 설정합니다.
+        </p>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>프로젝트 선택</CardTitle>
+          <CardDescription>설정을 적용할 프로젝트를 선택하세요</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <select
+            value={selectedProject}
+            onChange={(e) => setSelectedProject(e.target.value)}
+            className="w-full px-3 py-2 border rounded-md"
+          >
+            {projects.map((project) => (
+              <option key={project.id} value={project.id}>
+                {project.project_name} - {project.event_name}
+              </option>
+            ))}
+          </select>
+        </CardContent>
+      </Card>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>지원하는 교통편</CardTitle>
+          <CardDescription>
+            발표자가 선택할 수 있는 교통편을 선택하세요
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {AVAILABLE_METHODS.map((method) => (
+            <div key={method.value} className="flex items-center space-x-2">
+              <Checkbox
+                id={method.value}
+                checked={supportedMethods.includes(method.value)}
+                onCheckedChange={() => handleMethodToggle(method.value)}
+              />
+              <Label htmlFor={method.value} className="cursor-pointer">
+                {method.label}
+              </Label>
             </div>
-          </div>
-        </div>
-      </header>
+          ))}
+        </CardContent>
+      </Card>
 
-      <main className="container mx-auto px-4 py-8 max-w-6xl">
-        <div className="space-y-6">
-          {/* 새 항목 추가 */}
-          <Card>
-            <CardHeader>
-              <CardTitle>새 항목 추가</CardTitle>
-              <CardDescription>
-                인정 또는 불인정 항목을 추가합니다
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-2">
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>영수증 제출 설정</CardTitle>
+          <CardDescription>
+            교통비 영수증 제출 규정을 설정합니다
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="requires_receipt"
+              checked={requiresReceipt}
+              onCheckedChange={(checked) => setRequiresReceipt(checked as boolean)}
+            />
+            <Label htmlFor="requires_receipt" className="cursor-pointer">
+              영수증 제출 필수
+            </Label>
+          </div>
+
+          {requiresReceipt && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="receipt_deadline" className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  영수증 제출 마감일
+                </Label>
                 <Input
-                  placeholder="예: 지하철 교통카드 영수증"
-                  value={newItem}
-                  onChange={(e) => setNewItem(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      handleAddItem('accepted');
-                    }
-                  }}
+                  id="receipt_deadline"
+                  type="datetime-local"
+                  value={receiptDeadline}
+                  onChange={(e) => setReceiptDeadline(e.target.value)}
                 />
-                <Button onClick={() => handleAddItem('accepted')}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  인정 항목에 추가
-                </Button>
-                <Button onClick={() => handleAddItem('rejected')} variant="outline">
-                  <Plus className="h-4 w-4 mr-2" />
-                  불인정 항목에 추가
-                </Button>
+                <p className="text-sm text-muted-foreground">
+                  마감일을 설정하지 않으면 별도 안내 없이 제출 가능합니다.
+                </p>
               </div>
-            </CardContent>
-          </Card>
 
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* 인정 항목 */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-green-600 dark:text-green-400">
-                  인정 항목 ({acceptedItems.length})
-                </CardTitle>
-                <CardDescription>
-                  교통비로 인정되는 영수증 항목입니다
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {acceptedItems.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-8">
-                      인정 항목이 없습니다
-                    </p>
-                  ) : (
-                    acceptedItems.map((item, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-900"
-                      >
-                        <Input
-                          value={item}
-                          onChange={(e) => handleEditItem('accepted', index, e.target.value)}
-                          className="flex-1 bg-background"
-                        />
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleMoveItem('accepted', index)}
-                          title="불인정 항목으로 이동"
-                        >
-                          <MoveRight className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveItem('accepted', index)}
-                          title="삭제"
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+              <div className="space-y-2">
+                <Label htmlFor="additional_notes">
+                  추가 안내사항
+                </Label>
+                <Textarea
+                  id="additional_notes"
+                  value={additionalNotes}
+                  onChange={(e) => setAdditionalNotes(e.target.value)}
+                  placeholder="예: 영수증은 발표일 기준 7일 이내 발생한 것만 인정됩니다."
+                  rows={4}
+                />
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
 
-            {/* 불인정 항목 */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-red-600 dark:text-red-400">
-                  불인정 항목 ({rejectedItems.length})
-                </CardTitle>
-                <CardDescription>
-                  교통비로 인정되지 않는 항목입니다
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {rejectedItems.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-8">
-                      불인정 항목이 없습니다
-                    </p>
-                  ) : (
-                    rejectedItems.map((item, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-900"
-                      >
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleMoveItem('rejected', index)}
-                          title="인정 항목으로 이동"
-                        >
-                          <MoveLeft className="h-4 w-4" />
-                        </Button>
-                        <Input
-                          value={item}
-                          onChange={(e) => handleEditItem('rejected', index, e.target.value)}
-                          className="flex-1 bg-background"
-                        />
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveItem('rejected', index)}
-                          title="삭제"
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* 저장 버튼 */}
-          <div className="flex justify-end">
-            <Button onClick={handleSave} disabled={isSaving} size="lg">
-              <Save className="h-4 w-4 mr-2" />
-              {isSaving ? "저장 중..." : "설정 저장"}
-            </Button>
-          </div>
-        </div>
-      </main>
+      <div className="mt-6 flex justify-end">
+        <Button onClick={handleSave} disabled={saving} size="lg">
+          {saving ? "저장 중..." : "설정 저장"}
+        </Button>
+      </div>
     </div>
   );
 };

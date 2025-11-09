@@ -9,33 +9,9 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Car, Train, Plane, Bus, Navigation, Calendar } from "lucide-react";
+import { Car, Train, Plane, Bus, Navigation, Calendar, Upload, FileText, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
-
-// Temporary type definitions
-interface TransportationInfo {
-  id: string;
-  session_id: string;
-  transportation_method: string;
-  departure_location: string | null;
-  departure_date: string | null;
-  departure_time: string | null;
-  arrival_location: string | null;
-  arrival_date: string | null;
-  arrival_time: string | null;
-  vehicle_type: string | null;
-  vehicle_number: string | null;
-  train_number: string | null;
-  seat_number: string | null;
-  flight_number: string | null;
-  airline: string | null;
-  requires_reimbursement: boolean;
-  estimated_cost: number | null;
-  actual_cost: number | null;
-  receipt_submitted: boolean;
-  notes: string | null;
-}
 
 interface AttendanceField {
   id: string;
@@ -62,6 +38,11 @@ const TransportationInfo = () => {
   const [projectId, setProjectId] = useState<string | null>(null);
   const [attendanceFields, setAttendanceFields] = useState<AttendanceField[]>([]);
   const [attendanceResponses, setAttendanceResponses] = useState<Record<string, boolean>>({});
+  const [supportedMethods, setSupportedMethods] = useState<string[]>([]);
+  const [requiresReceipt, setRequiresReceipt] = useState(false);
+  const [receiptDeadline, setReceiptDeadline] = useState<string | null>(null);
+  const [additionalNotes, setAdditionalNotes] = useState<string | null>(null);
+  const [receiptFiles, setReceiptFiles] = useState<File[]>([]);
   
   const [formData, setFormData] = useState({
     transportation_method: '대중교통',
@@ -82,6 +63,7 @@ const TransportationInfo = () => {
     actual_cost: '',
     receipt_submitted: false,
     notes: '',
+    receipt_file_path: '',
   });
 
   useEffect(() => {
@@ -103,6 +85,9 @@ const TransportationInfo = () => {
       // Load attendance fields and responses
       await loadAttendanceData(session.id, session.project_id);
 
+      // Load transportation settings
+      await loadTransportationSettings(session.project_id);
+
       // Load transportation info
       const { data, error } = await supabase
         .from('transportation_info' as any)
@@ -113,7 +98,7 @@ const TransportationInfo = () => {
       if (error && error.code !== 'PGRST116') throw error;
 
       if (data) {
-        const transportInfo = data as unknown as TransportationInfo;
+        const transportInfo = data as any;
         setFormData({
           transportation_method: transportInfo.transportation_method || '대중교통',
           departure_location: transportInfo.departure_location || '',
@@ -133,6 +118,7 @@ const TransportationInfo = () => {
           actual_cost: transportInfo.actual_cost?.toString() || '',
           receipt_submitted: transportInfo.receipt_submitted || false,
           notes: transportInfo.notes || '',
+          receipt_file_path: transportInfo.receipt_file_path || '',
         });
       }
     } catch (error: any) {
@@ -145,7 +131,6 @@ const TransportationInfo = () => {
 
   const loadAttendanceData = async (sessionId: string, projectId: string) => {
     try {
-      // Load attendance fields
       const { data: fields, error: fieldsError } = await supabase
         .from('attendance_fields' as any)
         .select('*')
@@ -155,7 +140,6 @@ const TransportationInfo = () => {
       if (fieldsError) throw fieldsError;
       setAttendanceFields((fields as any) || []);
 
-      // Load existing responses
       const { data: responses, error: responsesError } = await supabase
         .from('attendance_responses' as any)
         .select('*')
@@ -170,6 +154,30 @@ const TransportationInfo = () => {
       setAttendanceResponses(responsesMap);
     } catch (error: any) {
       console.error('Error loading attendance data:', error);
+    }
+  };
+
+  const loadTransportationSettings = async (projectId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('transportation_settings' as any)
+        .select('*')
+        .eq('project_id', projectId)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') throw error;
+
+      if (data) {
+        const settings = data as any;
+        setSupportedMethods(settings.supported_methods || ['대중교통', '자차', 'KTX', '항공', '기타']);
+        setRequiresReceipt(settings.requires_receipt ?? false);
+        setReceiptDeadline(settings.receipt_deadline);
+        setAdditionalNotes(settings.additional_notes);
+      } else {
+        setSupportedMethods(['대중교통', '자차', 'KTX', '항공', '기타']);
+      }
+    } catch (error: any) {
+      console.error('Error loading transportation settings:', error);
     }
   };
 
@@ -199,6 +207,27 @@ const TransportationInfo = () => {
     }
   };
 
+  const handleReceiptFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const validFiles = files.filter(file => {
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error(`${file.name}: 파일 크기는 10MB를 초과할 수 없습니다.`);
+        return false;
+      }
+      return true;
+    });
+    
+    setReceiptFiles(prev => [...prev, ...validFiles]);
+    if (validFiles.length > 0) {
+      toast.success(`${validFiles.length}개의 영수증 파일이 추가되었습니다.`);
+    }
+  };
+
+  const handleRemoveReceiptFile = (index: number) => {
+    setReceiptFiles(prev => prev.filter((_, i) => i !== index));
+    toast.info("영수증 파일이 제거되었습니다.");
+  };
+
   const handleSave = async () => {
     if (!sessionId) {
       toast.error("세션 정보를 찾을 수 없습니다.");
@@ -207,6 +236,23 @@ const TransportationInfo = () => {
 
     setIsSaving(true);
     try {
+      let receiptPath = formData.receipt_file_path;
+      
+      // Upload receipt files if any
+      if (receiptFiles.length > 0) {
+        const file = receiptFiles[0];
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${sessionId}_${Date.now()}.${fileExt}`;
+        const filePath = `receipts/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('presentations')
+          .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+        receiptPath = filePath;
+      }
+
       const { error } = await supabase
         .from('transportation_info' as any)
         .upsert({
@@ -229,6 +275,7 @@ const TransportationInfo = () => {
           actual_cost: formData.actual_cost ? parseFloat(formData.actual_cost) : null,
           receipt_submitted: formData.receipt_submitted,
           notes: formData.notes || null,
+          receipt_file_path: receiptPath || null,
         }, {
           onConflict: 'session_id'
         });
@@ -236,6 +283,7 @@ const TransportationInfo = () => {
       if (error) throw error;
 
       toast.success("교통편 정보가 저장되었습니다.");
+      setReceiptFiles([]);
     } catch (error: any) {
       console.error(error);
       toast.error("저장 중 오류가 발생했습니다.");
@@ -311,6 +359,8 @@ const TransportationInfo = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* 교통편 정보 섹션 */}
       <Card className="shadow-elevated">
         <CardHeader>
           <CardTitle>교통수단 선택</CardTitle>
@@ -322,7 +372,7 @@ const TransportationInfo = () => {
             onValueChange={(value) => setFormData({ ...formData, transportation_method: value })}
             className="grid grid-cols-2 md:grid-cols-5 gap-4"
           >
-            {TRANSPORTATION_METHODS.map((method) => (
+            {TRANSPORTATION_METHODS.filter(m => supportedMethods.includes(m.value)).map((method) => (
               <Label
                 key={method.value}
                 htmlFor={method.value}
@@ -337,6 +387,7 @@ const TransportationInfo = () => {
         </CardContent>
       </Card>
 
+      {/* 이동 정보 */}
       <Card className="shadow-elevated">
         <CardHeader>
           <CardTitle>이동 정보</CardTitle>
@@ -408,6 +459,7 @@ const TransportationInfo = () => {
         </CardContent>
       </Card>
 
+      {/* 자차 정보 */}
       {formData.transportation_method === '자차' && (
         <Card className="shadow-elevated">
           <CardHeader>
@@ -439,6 +491,7 @@ const TransportationInfo = () => {
         </Card>
       )}
 
+      {/* KTX 정보 */}
       {formData.transportation_method === 'KTX' && (
         <Card className="shadow-elevated">
           <CardHeader>
@@ -470,6 +523,7 @@ const TransportationInfo = () => {
         </Card>
       )}
 
+      {/* 항공편 정보 */}
       {formData.transportation_method === '항공' && (
         <Card className="shadow-elevated">
           <CardHeader>
@@ -501,6 +555,7 @@ const TransportationInfo = () => {
         </Card>
       )}
 
+      {/* 교통비 정보 */}
       <Card className="shadow-elevated">
         <CardHeader>
           <CardTitle>교통비 정보</CardTitle>
@@ -548,6 +603,88 @@ const TransportationInfo = () => {
         </CardContent>
       </Card>
 
+      {/* 영수증 업로드 섹션 */}
+      {requiresReceipt && (
+        <Card className="shadow-elevated">
+          <CardHeader>
+            <CardTitle>교통비 영수증</CardTitle>
+            <CardDescription className="space-y-1">
+              <p>교통비 실비 지급을 위해 영수증을 첨부해 주세요</p>
+              {receiptDeadline && (
+                <div className="flex items-center gap-1 text-sm text-destructive font-medium mt-2">
+                  <Calendar className="h-4 w-4" />
+                  <span>마감: {format(new Date(receiptDeadline), "yyyy년 M월 d일 HH:mm", { locale: ko })}</span>
+                </div>
+              )}
+              {receiptDeadline && new Date(receiptDeadline) > new Date() && (
+                <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">
+                  마감일 이후 변경사항은 반영되지 않을 수 있습니다.
+                </p>
+              )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {additionalNotes && (
+              <div className="p-4 bg-muted/30 rounded-lg text-sm">
+                <p className="whitespace-pre-line">{additionalNotes}</p>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label>영수증 파일</Label>
+              <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary/50 transition-colors">
+                <label htmlFor="receipt-upload" className="cursor-pointer">
+                  <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground mb-1">
+                    클릭하여 영수증 파일 선택
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    JPG, PNG, PDF (10MB 이내, 여러 파일 선택 가능)
+                  </p>
+                  <input
+                    id="receipt-upload"
+                    type="file"
+                    className="hidden"
+                    accept="image/*,.pdf"
+                    multiple
+                    onChange={handleReceiptFileSelect}
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* 업로드된 영수증 목록 */}
+            {receiptFiles.length > 0 && (
+              <div className="space-y-2">
+                <Label>첨부된 영수증 ({receiptFiles.length}개)</Label>
+                <div className="space-y-2">
+                  {receiptFiles.map((file, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 bg-accent/50 rounded-lg"
+                    >
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-primary" />
+                        <span className="text-sm font-medium">{file.name}</span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveReceiptFile(index)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 추가 정보 */}
       <Card className="shadow-elevated">
         <CardHeader>
           <CardTitle>추가 정보</CardTitle>

@@ -544,6 +544,7 @@ export type Database = {
           flight_number: string | null
           id: string
           notes: string | null
+          receipt_file_path: string | null
           receipt_submitted: boolean
           requires_reimbursement: boolean
           seat_number: string | null
@@ -568,6 +569,7 @@ export type Database = {
           flight_number?: string | null
           id?: string
           notes?: string | null
+          receipt_file_path?: string | null
           receipt_submitted?: boolean
           requires_reimbursement?: boolean
           seat_number?: string | null
@@ -592,6 +594,7 @@ export type Database = {
           flight_number?: string | null
           id?: string
           notes?: string | null
+          receipt_file_path?: string | null
           receipt_submitted?: boolean
           requires_reimbursement?: boolean
           seat_number?: string | null
@@ -601,6 +604,39 @@ export type Database = {
           updated_at?: string
           vehicle_number?: string | null
           vehicle_type?: string | null
+        }
+        Relationships: []
+      }
+      transportation_settings: {
+        Row: {
+          additional_notes: string | null
+          created_at: string
+          id: string
+          project_id: string
+          receipt_deadline: string | null
+          requires_receipt: boolean
+          supported_methods: Json
+          updated_at: string
+        }
+        Insert: {
+          additional_notes?: string | null
+          created_at?: string
+          id?: string
+          project_id: string
+          receipt_deadline?: string | null
+          requires_receipt?: boolean
+          supported_methods?: Json
+          updated_at?: string
+        }
+        Update: {
+          additional_notes?: string | null
+          created_at?: string
+          id?: string
+          project_id?: string
+          receipt_deadline?: string | null
+          requires_receipt?: boolean
+          supported_methods?: Json
+          updated_at?: string
         }
         Relationships: []
       }
