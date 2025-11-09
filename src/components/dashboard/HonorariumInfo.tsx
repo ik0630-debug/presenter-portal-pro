@@ -17,12 +17,15 @@ const HonorariumInfo = () => {
   const [agentConsent, setAgentConsent] = useState(false);
   const [signatureMethod, setSignatureMethod] = useState<"upload" | "draw">("draw");
   const [signatureFile, setSignatureFile] = useState<File | null>(null);
+  const [receiptFiles, setReceiptFiles] = useState<File[]>([]);
   const signatureRef = useRef<SignatureCanvas>(null);
   
-  // TODO: 실제로는 project_settings에서 가져와야 함
+  // TODO: 실제로는 DB에서 가져와야 함
   const taxInvoiceEmail = "tax@example.com";
-  const speakerName = "홍길동"; // TODO: 실제 발표자 이름
-  const honorariumAmount = 1000000; // TODO: 실제 강연료
+  const speakerName = "홍길동";
+  const honorariumAmount = 1000000;
+  const transportationProvided = true; // TODO: speaker_sessions 또는 project_settings에서 가져와야 함
+  const transportationLimit = 30; // 만원 단위, TODO: DB에서 가져와야 함
 
   const handleFileSelect = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -83,6 +86,27 @@ const HonorariumInfo = () => {
     toast.info("사업자등록증 다운로드 기능은 준비 중입니다.");
   };
 
+  const handleReceiptFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const validFiles = files.filter(file => {
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error(`${file.name}: 파일 크기는 10MB를 초과할 수 없습니다.`);
+        return false;
+      }
+      return true;
+    });
+    
+    setReceiptFiles(prev => [...prev, ...validFiles]);
+    if (validFiles.length > 0) {
+      toast.success(`${validFiles.length}개의 영수증 파일이 추가되었습니다.`);
+    }
+  };
+
+  const handleRemoveReceiptFile = (index: number) => {
+    setReceiptFiles(prev => prev.filter((_, i) => i !== index));
+    toast.info("영수증 파일이 제거되었습니다.");
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -121,6 +145,39 @@ const HonorariumInfo = () => {
 
   return (
     <div className="space-y-4">
+      {/* 강연료 안내 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">강연료 안내</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label className="text-base font-semibold">금액</Label>
+            <p className="text-2xl font-bold text-primary">
+              {honorariumAmount.toLocaleString()}원
+            </p>
+          </div>
+          
+          <div className="space-y-2 text-sm text-muted-foreground">
+            <p>• 강연료는 강의 종료 후 14일 이내 지급됩니다.</p>
+            <p>• 개인의 경우 강연료에서 세액 공제 후 지급됩니다.</p>
+            <p>• 강연료 입금 일을 기준으로 세무 신고됩니다.</p>
+          </div>
+
+          <div className="pt-2 border-t">
+            {transportationProvided ? (
+              <p className="text-sm text-muted-foreground">
+                • 행사장 이동을 위한 교통비는 실비로 제공되며, 영수증을 첨부해 주시기 바랍니다. (최대 {transportationLimit}만원 한도)
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                • 교통비 등은 별도 지급되지 않습니다.
+              </p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">강연료 지급 정보</CardTitle>
@@ -477,12 +534,74 @@ const HonorariumInfo = () => {
         </Card>
       )}
 
+      {/* 영수증 첨부 - 교통비 제공시에만 표시 */}
+      {transportationProvided && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">교통비 영수증</CardTitle>
+            <CardDescription>
+              교통비 실비 지급을 위해 영수증을 첨부해 주세요
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>영수증 파일</Label>
+              <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary/50 transition-colors">
+                <label htmlFor="receipt-upload" className="cursor-pointer">
+                  <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground mb-1">
+                    클릭하여 영수증 파일 선택
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    JPG, PNG, PDF (10MB 이내, 여러 파일 선택 가능)
+                  </p>
+                  <input
+                    id="receipt-upload"
+                    type="file"
+                    className="hidden"
+                    accept="image/*,.pdf"
+                    multiple
+                    onChange={handleReceiptFileSelect}
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* 업로드된 영수증 목록 */}
+            {receiptFiles.length > 0 && (
+              <div className="space-y-2">
+                <Label>첨부된 영수증 ({receiptFiles.length}개)</Label>
+                <div className="space-y-2">
+                  {receiptFiles.map((file, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 bg-accent/50 rounded-lg"
+                    >
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-primary" />
+                        <span className="text-sm font-medium">{file.name}</span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveReceiptFile(index)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="border-accent/20">
         <CardContent className="pt-6">
           <div className="space-y-2 text-sm text-muted-foreground">
-            <p>• 발표 종료 후 14일 이내 지급 예정입니다.</p>
             <p>• 제출하신 정보는 강연료 지급 목적으로만 사용됩니다.</p>
-            <p>• 세금 계산서 발행이 필요한 경우 별도 연락 부탁드립니다.</p>
           </div>
         </CardContent>
       </Card>
