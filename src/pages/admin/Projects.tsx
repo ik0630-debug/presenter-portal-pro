@@ -357,15 +357,6 @@ const AdminProjects = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => navigate(`/admin/projects/${project.id}/arrival-guide`)}
-                        className="gap-2"
-                      >
-                        <Settings className="h-4 w-4" />
-                        현장안내 설정
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
                         onClick={() => navigate(`/admin/projects/${project.id}/presentations`)}
                         className="gap-2"
                       >
