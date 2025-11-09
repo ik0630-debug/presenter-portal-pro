@@ -3,10 +3,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Upload, FileText, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 const HonorariumInfo = () => {
+  const [recipientType, setRecipientType] = useState<string>("본인");
+  const [incomeType, setIncomeType] = useState<string>("기타소득");
   const [bankName, setBankName] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [accountHolder, setAccountHolder] = useState("");
@@ -72,7 +75,59 @@ const HonorariumInfo = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* 지급 받는자 선택 */}
+            <div className="space-y-3">
+              <Label className="text-base font-semibold">지급 받는자 *</Label>
+              <RadioGroup value={recipientType} onValueChange={setRecipientType}>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="본인" id="recipient-self" />
+                  <Label htmlFor="recipient-self" className="font-normal cursor-pointer">본인</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="소속기업" id="recipient-company" />
+                  <Label htmlFor="recipient-company" className="font-normal cursor-pointer">
+                    소속 기업(세금계산서 발행)
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="대리인" id="recipient-agent" />
+                  <Label htmlFor="recipient-agent" className="font-normal cursor-pointer">대리인</Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            {/* 소득 구분 선택 - 본인 또는 대리인일 경우만 표시 */}
+            {(recipientType === "본인" || recipientType === "대리인") && (
+              <div className="space-y-3">
+                <Label className="text-base font-semibold">소득 구분 *</Label>
+                <RadioGroup value={incomeType} onValueChange={setIncomeType}>
+                  <div className="space-y-1">
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="기타소득" id="income-other" />
+                      <Label htmlFor="income-other" className="font-normal cursor-pointer">
+                        기타소득(8.8% 공제 후 입금)
+                      </Label>
+                    </div>
+                    <p className="text-sm text-muted-foreground ml-6">
+                      일시적이고 비정기적 소득인 경우(대부분의 경우에 해당)
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="사업소득" id="income-business" />
+                      <Label htmlFor="income-business" className="font-normal cursor-pointer">
+                        사업소득(3.3% 공제 후 입금)
+                      </Label>
+                    </div>
+                    <p className="text-sm text-muted-foreground ml-6">
+                      정기적 소득(프리랜서 등에 해당)
+                    </p>
+                  </div>
+                </RadioGroup>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="bankName">은행명 *</Label>
               <Input
