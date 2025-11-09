@@ -91,11 +91,18 @@ const ArrivalGuide = () => {
     try {
       const speakerSession = localStorage.getItem("speakerSession");
       if (!speakerSession) {
-        toast.error("세션 정보를 찾을 수 없습니다.");
         return;
       }
 
       const session = JSON.parse(speakerSession);
+      
+      // Check if project_id exists
+      if (!session.project_id) {
+        console.log("No project_id in session");
+        setIsLoading(false);
+        return;
+      }
+      
       setSessionId(session.id);
       setProjectId(session.project_id);
 

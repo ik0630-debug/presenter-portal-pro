@@ -41,6 +41,66 @@ export type Database = {
         }
         Relationships: []
       }
+      arrival_guide_settings: {
+        Row: {
+          additional_notes: string | null
+          check_in_location: string | null
+          check_in_time: string | null
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          created_at: string
+          emergency_contact: string | null
+          id: string
+          parking_info: string | null
+          presentation_room: string | null
+          presentation_time: string | null
+          project_id: string
+          updated_at: string
+          venue_address: string
+          venue_map_url: string | null
+          venue_name: string
+        }
+        Insert: {
+          additional_notes?: string | null
+          check_in_location?: string | null
+          check_in_time?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          emergency_contact?: string | null
+          id?: string
+          parking_info?: string | null
+          presentation_room?: string | null
+          presentation_time?: string | null
+          project_id: string
+          updated_at?: string
+          venue_address?: string
+          venue_map_url?: string | null
+          venue_name?: string
+        }
+        Update: {
+          additional_notes?: string | null
+          check_in_location?: string | null
+          check_in_time?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          emergency_contact?: string | null
+          id?: string
+          parking_info?: string | null
+          presentation_room?: string | null
+          presentation_time?: string | null
+          project_id?: string
+          updated_at?: string
+          venue_address?: string
+          venue_map_url?: string | null
+          venue_name?: string
+        }
+        Relationships: []
+      }
       consent_fields: {
         Row: {
           content: string
@@ -408,7 +468,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_admin: { Args: { user_id: string }; Returns: boolean }
+      is_super_admin: { Args: { user_id: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
