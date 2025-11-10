@@ -31,6 +31,12 @@ Deno.serve(async (req) => {
     }
 
     console.log(`Found ${projects?.length || 0} projects`);
+    
+    // 프로젝트 구조 확인을 위한 상세 로그
+    if (projects && projects.length > 0) {
+      console.log('First project structure:', JSON.stringify(projects[0], null, 2));
+      console.log('Available fields:', Object.keys(projects[0]));
+    }
 
     // Get speakers for each project
     const projectsWithSpeakers = await Promise.all(
