@@ -32,6 +32,7 @@ import {
 
 interface Project {
   id: string;
+  title?: string;
   project_name: string;
   event_name: string;
   description: string | null;
@@ -593,7 +594,7 @@ const AdminProjects = () => {
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 space-y-2">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <CardTitle className="text-lg leading-tight">{project.event_name || project.project_name}</CardTitle>
+                          <CardTitle className="text-lg leading-tight">{project.event_name || project.project_name || project.title || '제목 없음'}</CardTitle>
                           {project.external_project_id && (
                             <Badge variant="secondary" className="gap-1">
                               <ExternalLink className="h-3 w-3" />
