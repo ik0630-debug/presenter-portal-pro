@@ -212,11 +212,12 @@ const AdminProjects = () => {
             start_date: formData.start_date || null,
             end_date: formData.end_date || null,
             slug: formData.slug,
+            is_active: true, // 저장 시 자동 활성화
           })
           .eq('id', editingProject.id);
 
         if (error) throw error;
-        toast.success("프로젝트가 수정되었습니다.");
+        toast.success("프로젝트가 활성화되었습니다.");
       } else {
         if (createMode === "import" && selectedExternalProjectId) {
           // 외부 프로젝트 가져오기
@@ -313,11 +314,11 @@ const AdminProjects = () => {
   const openEditDialog = (project: Project) => {
     setEditingProject(project);
     
-    // 기본값 설정
+    // 사용 시작일 기본값: 오늘
     const today = new Date().toISOString().split('T')[0];
-    let defaultEndDate = today;
     
-    // 행사 종료일이 있으면 그로부터 10일 후
+    // 사용 종료일 기본값: 행사 종료일 + 10일 (없으면 오늘)
+    let defaultEndDate = today;
     if (project.end_date) {
       const eventEndDate = new Date(project.end_date);
       eventEndDate.setDate(eventEndDate.getDate() + 10);
@@ -328,8 +329,8 @@ const AdminProjects = () => {
       project_name: project.project_name,
       event_name: project.event_name,
       description: project.description || "",
-      start_date: project.start_date?.split('T')[0] || today,
-      end_date: project.end_date?.split('T')[0] || defaultEndDate,
+      start_date: today, // 항상 오늘로 시작
+      end_date: defaultEndDate, // 행사 종료일 + 10일
       slug: project.slug || "",
     });
     setIsDialogOpen(true);
@@ -588,7 +589,10 @@ const AdminProjects = () => {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="edit_start_date">사용 시작일 *</Label>
+                        <Label htmlFor="edit_start_date">
+                          사용 시작일 *
+                          <span className="text-xs text-muted-foreground ml-2">(오늘부터 시작)</span>
+                        </Label>
                         <Input
                           id="edit_start_date"
                           type="date"
@@ -598,7 +602,10 @@ const AdminProjects = () => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="edit_end_date">사용 종료일 *</Label>
+                        <Label htmlFor="edit_end_date">
+                          사용 종료일 *
+                          <span className="text-xs text-muted-foreground ml-2">(행사일 + 10일)</span>
+                        </Label>
                         <Input
                           id="edit_end_date"
                           type="date"
