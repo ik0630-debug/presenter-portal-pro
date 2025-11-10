@@ -312,12 +312,24 @@ const AdminProjects = () => {
 
   const openEditDialog = (project: Project) => {
     setEditingProject(project);
+    
+    // 기본값 설정
+    const today = new Date().toISOString().split('T')[0];
+    let defaultEndDate = today;
+    
+    // 행사 종료일이 있으면 그로부터 10일 후
+    if (project.end_date) {
+      const eventEndDate = new Date(project.end_date);
+      eventEndDate.setDate(eventEndDate.getDate() + 10);
+      defaultEndDate = eventEndDate.toISOString().split('T')[0];
+    }
+    
     setFormData({
       project_name: project.project_name,
       event_name: project.event_name,
       description: project.description || "",
-      start_date: project.start_date?.split('T')[0] || "",
-      end_date: project.end_date?.split('T')[0] || "",
+      start_date: project.start_date?.split('T')[0] || today,
+      end_date: project.end_date?.split('T')[0] || defaultEndDate,
       slug: project.slug || "",
     });
     setIsDialogOpen(true);
