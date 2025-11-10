@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
+import SpeakerAuth from "./pages/SpeakerAuth";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import AdminLogin from "./pages/admin/Login";
@@ -32,17 +33,18 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/:projectSlug/:speakerEmail" element={<Dashboard />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
-        <Route path="/admin/projects" element={<AdminProjects />} />
-        <Route path="/admin/projects/:projectId/transportation" element={<TransportationSettings />} />
-        <Route path="/admin/projects/:projectId/presentations" element={<PresentationFiles />} />
-        <Route path="/admin/projects/:projectId/presentation-fields" element={<PresentationFieldSettings />} />
-        <Route path="/admin/projects/:projectId/consent-fields" element={<ConsentFieldSettings />} />
-        <Route path="/admin/projects/:projectId/receipt-settings" element={<ReceiptSettings />} />
-        <Route path="/admin/projects/:projectId/arrival-guide" element={<ArrivalGuideSettings />} />
-        <Route path="/admin/webhook-settings" element={<WebhookSettings />} />
+          <Route path="/admin/projects" element={<AdminProjects />} />
+          <Route path="/admin/projects/:projectId/transportation" element={<TransportationSettings />} />
+          <Route path="/admin/projects/:projectId/presentations" element={<PresentationFiles />} />
+          <Route path="/admin/projects/:projectId/presentation-fields" element={<PresentationFieldSettings />} />
+          <Route path="/admin/projects/:projectId/consent-fields" element={<ConsentFieldSettings />} />
+          <Route path="/admin/projects/:projectId/receipt-settings" element={<ReceiptSettings />} />
+          <Route path="/admin/projects/:projectId/arrival-guide" element={<ArrivalGuideSettings />} />
+          <Route path="/admin/webhook-settings" element={<WebhookSettings />} />
+          {/* Slug-based speaker authentication route */}
+          <Route path="/:slug" element={<SpeakerAuth />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
