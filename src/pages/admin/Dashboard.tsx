@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LogOut, FolderKanban, Users, Settings, Bug } from "lucide-react";
+import { LogOut, FolderKanban, Users, Settings, Bug, Webhook } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -119,6 +119,26 @@ const AdminDashboard = () => {
             <CardContent>
               <Button variant="outline" className="w-full" disabled>
                 준비 중
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card 
+            className="shadow-elevated hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={() => navigate("/admin/webhook-settings")}
+          >
+            <CardHeader>
+              <div className="w-12 h-12 rounded-lg bg-gradient-primary flex items-center justify-center mb-4">
+                <Webhook className="h-6 w-6 text-white" />
+              </div>
+              <CardTitle>Webhook 설정</CardTitle>
+              <CardDescription>
+                외부 시스템 실시간 동기화 설정
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button variant="outline" className="w-full">
+                설정하기
               </Button>
             </CardContent>
           </Card>

@@ -16,6 +16,7 @@ import PresentationFieldSettings from "./pages/admin/PresentationFieldSettings";
 import ConsentFieldSettings from "./pages/admin/ConsentFieldSettings";
 import ReceiptSettings from "./pages/admin/ReceiptSettings";
 import ArrivalGuideSettings from "./pages/admin/ArrivalGuideSettings";
+import WebhookSettings from "./pages/admin/WebhookSettings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,6 +42,7 @@ const App = () => (
         <Route path="/admin/projects/:projectId/consent-fields" element={<ConsentFieldSettings />} />
         <Route path="/admin/projects/:projectId/receipt-settings" element={<ReceiptSettings />} />
         <Route path="/admin/projects/:projectId/arrival-guide" element={<ArrivalGuideSettings />} />
+        <Route path="/admin/webhook-settings" element={<WebhookSettings />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
