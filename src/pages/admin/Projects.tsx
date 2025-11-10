@@ -368,9 +368,9 @@ const AdminProjects = () => {
               </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>{editingProject ? "프로젝트 수정" : "새 프로젝트 만들기"}</DialogTitle>
+                <DialogTitle>{editingProject ? "프로젝트 설정" : "새 프로젝트 만들기"}</DialogTitle>
                 <DialogDescription>
-                  {editingProject ? "프로젝트 정보를 수정하세요" : "외부 프로젝트에서 가져오거나 직접 생성하세요"}
+                  {editingProject ? "페이지 주소와 사용 기간을 설정하세요" : "외부 프로젝트에서 가져오거나 직접 생성하세요"}
                 </DialogDescription>
               </DialogHeader>
 
@@ -509,62 +509,101 @@ const AdminProjects = () => {
               )}
 
               {editingProject && (
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                <form onSubmit={handleSubmit} className="space-y-6 mt-4">
+                  <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
+                    <h4 className="font-semibold text-sm">프로젝트 정보</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="edit_project_name">프로젝트명</Label>
+                        <Input
+                          id="edit_project_name"
+                          value={formData.project_name}
+                          disabled
+                          className="bg-background"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit_event_name">행사명</Label>
+                        <Input
+                          id="edit_event_name"
+                          value={formData.event_name}
+                          disabled
+                          className="bg-background"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="project_name">프로젝트명 *</Label>
+                      <Label htmlFor="edit_slug">
+                        페이지 주소 * 
+                        <span className="text-xs text-muted-foreground ml-2">
+                          (예: my-event → presenter-portal-pro.lovable.app/my-event)
+                        </span>
+                      </Label>
                       <Input
-                        id="project_name"
-                        value={formData.project_name}
-                        onChange={(e) => setFormData({...formData, project_name: e.target.value})}
+                        id="edit_slug"
+                        value={formData.slug}
+                        onChange={(e) => {
+                          const slug = e.target.value
+                            .toLowerCase()
+                            .replace(/[^a-z0-9-]/g, '-')
+                            .replace(/-+/g, '-')
+                            .replace(/^-|-$/g, '');
+                          setFormData({...formData, slug});
+                        }}
+                        placeholder="my-event-2024"
                         required
                       />
+                      {formData.slug && (
+                        <p className="text-xs text-muted-foreground">
+                          발표자 접속 주소: https://presenter-portal-pro.lovable.app/{formData.slug}
+                        </p>
+                      )}
                     </div>
+
                     <div className="space-y-2">
-                      <Label htmlFor="event_name">행사명 *</Label>
-                      <Input
-                        id="event_name"
-                        value={formData.event_name}
-                        onChange={(e) => setFormData({...formData, event_name: e.target.value})}
-                        required
+                      <Label htmlFor="edit_description">설명</Label>
+                      <Textarea
+                        id="edit_description"
+                        value={formData.description}
+                        onChange={(e) => setFormData({...formData, description: e.target.value})}
+                        rows={3}
+                        placeholder="프로젝트에 대한 설명을 입력하세요"
                       />
                     </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="description">설명</Label>
-                    <Textarea
-                      id="description"
-                      value={formData.description}
-                      onChange={(e) => setFormData({...formData, description: e.target.value})}
-                      rows={3}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="start_date">시작일</Label>
-                      <Input
-                        id="start_date"
-                        type="date"
-                        value={formData.start_date}
-                        onChange={(e) => setFormData({...formData, start_date: e.target.value})}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="end_date">종료일</Label>
-                      <Input
-                        id="end_date"
-                        type="date"
-                        value={formData.end_date}
-                        onChange={(e) => setFormData({...formData, end_date: e.target.value})}
-                      />
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="edit_start_date">사용 시작일 *</Label>
+                        <Input
+                          id="edit_start_date"
+                          type="date"
+                          value={formData.start_date}
+                          onChange={(e) => setFormData({...formData, start_date: e.target.value})}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit_end_date">사용 종료일 *</Label>
+                        <Input
+                          id="edit_end_date"
+                          type="date"
+                          value={formData.end_date}
+                          onChange={(e) => setFormData({...formData, end_date: e.target.value})}
+                          required
+                        />
+                      </div>
                     </div>
                   </div>
-                  <div className="flex justify-end gap-2">
+
+                  <div className="flex justify-end gap-2 pt-4 border-t">
                     <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                       취소
                     </Button>
                     <Button type="submit">
-                      수정
+                      저장
                     </Button>
                   </div>
                 </form>
@@ -635,8 +674,9 @@ const AdminProjects = () => {
                           size="icon"
                           onClick={() => openEditDialog(project)}
                           className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="프로젝트 설정"
                         >
-                          <Edit className="h-4 w-4" />
+                          <Settings className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
