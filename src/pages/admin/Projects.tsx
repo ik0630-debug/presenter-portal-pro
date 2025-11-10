@@ -65,6 +65,7 @@ const AdminProjects = () => {
   const [externalProjects, setExternalProjects] = useState<ExternalProject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingExternal, setIsLoadingExternal] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [deleteProject, setDeleteProject] = useState<Project | null>(null);
@@ -282,6 +283,23 @@ const AdminProjects = () => {
     setCreateMode("import");
   };
 
+  const handleSyncProjects = async () => {
+    setIsSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-projects');
+      
+      if (error) throw error;
+
+      toast.success(`동기화 완료: ${data.newProjects}개 신규, ${data.updatedProjects}개 업데이트`);
+      fetchProjects();
+    } catch (error: any) {
+      console.error('Sync error:', error);
+      toast.error(error.message || "프로젝트 동기화 중 오류가 발생했습니다.");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const openEditDialog = (project: Project) => {
     setEditingProject(project);
     setFormData({
@@ -319,6 +337,15 @@ const AdminProjects = () => {
             </h1>
           </div>
           <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={handleSyncProjects}
+              disabled={isSyncing}
+              className="gap-2"
+            >
+              <Download className="h-4 w-4" />
+              {isSyncing ? "동기화 중..." : "자동 동기화"}
+            </Button>
             <Dialog open={isDialogOpen} onOpenChange={(open) => {
               setIsDialogOpen(open);
               if (!open) resetForm();
