@@ -120,15 +120,16 @@ const AdminProjects = () => {
 
   const fetchProjects = async () => {
     try {
-      console.log('Fetching external projects...');
-      const { data, error } = await supabase.functions.invoke('get-external-projects');
+      console.log('Fetching local projects...');
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       
-      console.log('External projects response:', data);
-      console.log('First project:', data?.projects?.[0]);
-      
-      setProjects(data?.projects || []);
+      console.log('Local projects:', data);
+      setProjects(data || []);
     } catch (error: any) {
       toast.error("프로젝트 목록을 불러오는데 실패했습니다.");
       console.error(error);
@@ -317,23 +318,22 @@ const AdminProjects = () => {
   const openEditDialog = (project: Project) => {
     setEditingProject(project);
     
-    // 사용 시작일 기본값: 오늘
+    // 사용 시작일: 기존 값이 있으면 유지, 없으면 오늘
     const today = new Date().toISOString().split('T')[0];
+    const startDate = project.start_date ? project.start_date.split('T')[0] : today;
     
-    // 사용 종료일 기본값: 행사 종료일 + 10일 (없으면 오늘)
-    let defaultEndDate = today;
+    // 사용 종료일: 기존 값이 있으면 유지, 없으면 행사 종료일 + 10일
+    let endDate = today;
     if (project.end_date) {
-      const eventEndDate = new Date(project.end_date);
-      eventEndDate.setDate(eventEndDate.getDate() + 10);
-      defaultEndDate = eventEndDate.toISOString().split('T')[0];
+      endDate = project.end_date.split('T')[0];
     }
     
     setFormData({
       project_name: project.project_name,
       event_name: project.event_name,
       description: project.description || "",
-      start_date: today, // 항상 오늘로 시작
-      end_date: defaultEndDate, // 행사 종료일 + 10일
+      start_date: startDate,
+      end_date: endDate,
       slug: project.slug || "",
       is_active: project.is_active,
     });
