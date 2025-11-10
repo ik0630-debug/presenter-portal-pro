@@ -85,6 +85,7 @@ const AdminProjects = () => {
     start_date: "",
     end_date: "",
     slug: "",
+    is_active: true,
   });
 
   useEffect(() => {
@@ -173,6 +174,7 @@ const AdminProjects = () => {
         start_date: selectedProject.start_date?.split('T')[0] || "",
         end_date: selectedProject.end_date?.split('T')[0] || "",
         slug: autoSlug,
+        is_active: true,
       });
     }
   };
@@ -212,12 +214,12 @@ const AdminProjects = () => {
             start_date: formData.start_date || null,
             end_date: formData.end_date || null,
             slug: formData.slug,
-            is_active: true, // 저장 시 자동 활성화
+            is_active: formData.is_active,
           })
           .eq('id', editingProject.id);
 
         if (error) throw error;
-        toast.success("프로젝트가 활성화되었습니다.");
+        toast.success("프로젝트 설정이 저장되었습니다.");
       } else {
         if (createMode === "import" && selectedExternalProjectId) {
           // 외부 프로젝트 가져오기
@@ -288,6 +290,7 @@ const AdminProjects = () => {
       start_date: "",
       end_date: "",
       slug: "",
+      is_active: true,
     });
     setEditingProject(null);
     setSelectedExternalProjectId("");
@@ -332,6 +335,7 @@ const AdminProjects = () => {
       start_date: today, // 항상 오늘로 시작
       end_date: defaultEndDate, // 행사 종료일 + 10일
       slug: project.slug || "",
+      is_active: project.is_active,
     });
     setIsDialogOpen(true);
   };
@@ -614,6 +618,27 @@ const AdminProjects = () => {
                           required
                         />
                       </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="edit_is_active">활성화 상태 *</Label>
+                      <Select 
+                        value={formData.is_active ? "active" : "inactive"} 
+                        onValueChange={(value) => setFormData({...formData, is_active: value === "active"})}
+                      >
+                        <SelectTrigger id="edit_is_active">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="active">활성 (발표자 접속 가능)</SelectItem>
+                          <SelectItem value="inactive">비활성 (발표자 접속 불가)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        {formData.is_active 
+                          ? "✅ 발표자가 페이지에 접속할 수 있습니다." 
+                          : "⚠️ 발표자가 페이지에 접속할 수 없습니다."}
+                      </p>
                     </div>
                   </div>
 
