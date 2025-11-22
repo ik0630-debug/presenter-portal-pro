@@ -795,6 +795,15 @@ const AdminProjects = () => {
                       <Button
                         variant="outline"
                         size="sm"
+                        onClick={() => navigate(`/admin/projects/${project.id}/speakers`)}
+                        className="justify-start gap-2"
+                      >
+                        <Users className="h-4 w-4" />
+                        연사관리
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => navigate(`/admin/projects/${project.id}/transportation`)}
                         className="justify-start gap-2"
                       >
