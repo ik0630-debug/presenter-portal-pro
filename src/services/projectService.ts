@@ -2,11 +2,12 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface ExternalProject {
   id: string;
-  project_name: string;
-  event_name: string;
+  title: string; // 외부 DB는 title 사용
+  description?: string;
   start_date?: string;
   end_date?: string;
-  description?: string;
+  location?: string;
+  speaker_portal_slug?: string;
 }
 
 /**
@@ -34,8 +35,8 @@ export async function importExternalProject(
 ): Promise<void> {
   try {
     const { error } = await supabase.from('projects').insert({
-      project_name: externalProject.project_name,
-      event_name: externalProject.event_name,
+      project_name: externalProject.title, // 외부 DB의 title을 project_name으로
+      event_name: externalProject.title, // 외부 DB의 title을 event_name으로
       description: externalProject.description,
       start_date: externalProject.start_date,
       end_date: externalProject.end_date,
