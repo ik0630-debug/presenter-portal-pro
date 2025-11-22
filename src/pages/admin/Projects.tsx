@@ -122,15 +122,46 @@ const AdminProjects = () => {
     try {
       console.log('Fetching projects from local DB...');
       
-      const { data, error } = await supabase
+      const { data: localProjects, error: localError } = await supabase
         .from('projects')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (localError) throw localError;
+
+      console.log('Fetching external projects via Edge function...');
       
-      console.log('Local projects:', data);
-      setProjects(data || []);
+      // Edge function으로 외부 프로젝트 가져오기
+      const { data: externalData, error: externalError } = await supabase.functions.invoke('fetch-external-projects');
+
+      if (externalError) {
+        console.warn('Failed to fetch external projects:', externalError);
+      }
+
+      const externalProjects = externalData?.projects || [];
+      console.log('External projects:', externalProjects.length);
+
+      // 로컬 프로젝트와 외부 프로젝트 정보 합치기
+      const mergedProjects = (localProjects || []).map(localProject => {
+        if (localProject.external_project_id) {
+          const externalProject = externalProjects.find(
+            (ep: any) => ep.id === localProject.external_project_id
+          );
+          
+          if (externalProject) {
+            return {
+              ...localProject,
+              project_name: externalProject.name || localProject.project_name,
+              event_name: externalProject.name || localProject.event_name,
+              description: externalProject.description || localProject.description,
+            };
+          }
+        }
+        return localProject;
+      });
+      
+      console.log('Merged projects:', mergedProjects);
+      setProjects(mergedProjects);
     } catch (error: any) {
       toast.error("프로젝트 목록을 불러오는데 실패했습니다.");
       console.error(error);
