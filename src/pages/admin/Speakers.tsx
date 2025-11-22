@@ -222,7 +222,7 @@ const Speakers = () => {
                   <DialogHeader>
                     <DialogTitle>연사 추가</DialogTitle>
                     <DialogDescription>
-                      외부 API에서 가져오거나 직접 입력할 수 있습니다.
+                      프로젝트에서 불러오거나 직접 입력할 수 있습니다.
                     </DialogDescription>
                   </DialogHeader>
 
@@ -241,7 +241,7 @@ const Speakers = () => {
                         className="flex-1"
                       >
                         <Download className="h-4 w-4 mr-2" />
-                        외부에서 가져오기
+                        프로젝트에서 불러오기
                       </Button>
                     </div>
 
