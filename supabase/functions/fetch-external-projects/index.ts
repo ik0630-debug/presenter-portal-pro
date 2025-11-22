@@ -21,53 +21,28 @@ Deno.serve(async (req) => {
       throw new Error('Missing required environment variables');
     }
 
-    console.log('Creating external Supabase client...');
+    console.log('Creating external Supabase client with service role key...');
     
-    // 외부 Supabase 클라이언트 생성
+    // 외부 Supabase 클라이언트 생성 (service role key 사용)
     const externalSupabase = createClient(
       EXTERNAL_SUPABASE_URL,
-      EXTERNAL_SUPABASE_ANON_KEY
+      EXTERNAL_SUPABASE_SERVICE_ROLE_KEY
     );
 
-    console.log('Logging in to external Supabase...');
+    console.log('Fetching projects from external database...');
     
-    // 외부 Supabase에 관리자로 로그인
-    const { data: authData, error: authError } = await externalSupabase.auth.signInWithPassword({
-      email: EXTERNAL_ADMIN_EMAIL,
-      password: EXTERNAL_ADMIN_PASSWORD,
-    });
+    // 외부 DB의 projects 테이블에서 직접 데이터 읽기
+    const { data: projects, error: projectsError } = await externalSupabase
+      .from('projects')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-    if (authError) {
-      console.error('Login error:', authError);
-      throw authError;
+    if (projectsError) {
+      console.error('Failed to fetch projects:', projectsError);
+      throw projectsError;
     }
 
-    if (!authData.session) {
-      throw new Error('No session returned from login');
-    }
-
-    const jwtToken = authData.session.access_token;
-    console.log('Successfully logged in, JWT token obtained');
-
-    // 관리자 API 호출
-    const apiUrl = `${EXTERNAL_SUPABASE_URL}/functions/v1/speaker-portal-admin/projects`;
-    console.log('Calling admin API:', apiUrl);
-
-    const response = await fetch(apiUrl, {
-      headers: {
-        'apikey': EXTERNAL_SUPABASE_SERVICE_ROLE_KEY,
-        'Authorization': `Bearer ${EXTERNAL_SUPABASE_SERVICE_ROLE_KEY}`,
-      },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('API call failed:', response.status, errorText);
-      throw new Error(`API call failed: ${response.status} ${errorText}`);
-    }
-
-    const projects = await response.json();
-    console.log('Successfully fetched projects:', projects.length || 0);
+    console.log('Successfully fetched projects:', projects?.length || 0);
 
     return new Response(
       JSON.stringify({ projects }),
