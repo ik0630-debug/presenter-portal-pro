@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -40,6 +41,36 @@ interface ConflictingSpeaker {
   existing: Speaker;
   conflicts: string[];
 }
+
+// Input validation schema
+const speakerSchema = z.object({
+  speaker_name: z.string()
+    .trim()
+    .min(1, { message: "이름은 필수 입력 항목입니다." })
+    .max(100, { message: "이름은 100자 이하여야 합니다." }),
+  email: z.string()
+    .trim()
+    .email({ message: "올바른 이메일 형식이 아닙니다." })
+    .max(255, { message: "이메일은 255자 이하여야 합니다." })
+    .or(z.literal("")),
+  organization: z.string()
+    .trim()
+    .max(200, { message: "소속은 200자 이하여야 합니다." })
+    .optional(),
+  department: z.string()
+    .trim()
+    .max(100, { message: "부서는 100자 이하여야 합니다." })
+    .optional(),
+  position: z.string()
+    .trim()
+    .max(100, { message: "직함은 100자 이하여야 합니다." })
+    .optional(),
+  phone: z.string()
+    .trim()
+    .regex(/^[0-9-+\s()]*$/, { message: "전화번호 형식이 올바르지 않습니다." })
+    .max(20, { message: "전화번호는 20자 이하여야 합니다." })
+    .optional(),
+});
 
 const Speakers = () => {
   const { projectId } = useParams();
@@ -128,37 +159,51 @@ const Speakers = () => {
   };
 
   const handleAddSpeaker = async () => {
-    if (!formData.speaker_name) {
-      toast.error("이름은 필수 입력 항목입니다.");
-      return;
-    }
-
-    const { error } = await supabase.from("speaker_sessions").insert({
-      project_id: projectId,
-      speaker_id: crypto.randomUUID(),
-      speaker_name: formData.speaker_name,
-      email: formData.email || null,
-      organization: formData.organization || null,
-      department: formData.department || null,
-      position: formData.position || null,
-      phone: formData.phone || null,
-    });
-
-    if (error) {
-      toast.error("연사 추가 실패");
-      console.error(error);
-    } else {
-      toast.success("연사가 추가되었습니다.");
-      setDialogOpen(false);
-      setFormData({
-        speaker_name: "",
-        email: "",
-        organization: "",
-        department: "",
-        position: "",
-        phone: "",
+    try {
+      // Validate input data
+      const validatedData = speakerSchema.parse({
+        speaker_name: formData.speaker_name,
+        email: formData.email || "",
+        organization: formData.organization || "",
+        department: formData.department || "",
+        position: formData.position || "",
+        phone: formData.phone || "",
       });
-      fetchSpeakers();
+
+      const { error } = await supabase.from("speaker_sessions").insert({
+        project_id: projectId,
+        speaker_id: crypto.randomUUID(),
+        speaker_name: validatedData.speaker_name,
+        email: validatedData.email || null,
+        organization: validatedData.organization || null,
+        department: validatedData.department || null,
+        position: validatedData.position || null,
+        phone: validatedData.phone || null,
+      });
+
+      if (error) {
+        toast.error("연사 추가 실패");
+        console.error(error);
+      } else {
+        toast.success("연사가 추가되었습니다.");
+        setDialogOpen(false);
+        setFormData({
+          speaker_name: "",
+          email: "",
+          organization: "",
+          department: "",
+          position: "",
+          phone: "",
+        });
+        fetchSpeakers();
+      }
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const firstError = error.errors[0];
+        toast.error(firstError.message);
+      } else {
+        toast.error("입력값 검증 실패");
+      }
     }
   };
 
@@ -419,9 +464,10 @@ const Speakers = () => {
                           <Input
                             value={formData.speaker_name}
                             onChange={(e) =>
-                              setFormData({ ...formData, speaker_name: e.target.value })
+                              setFormData({ ...formData, speaker_name: e.target.value.slice(0, 100) })
                             }
                             placeholder="홍길동"
+                            maxLength={100}
                           />
                         </div>
 
@@ -431,9 +477,10 @@ const Speakers = () => {
                             type="email"
                             value={formData.email}
                             onChange={(e) =>
-                              setFormData({ ...formData, email: e.target.value })
+                              setFormData({ ...formData, email: e.target.value.slice(0, 255) })
                             }
                             placeholder="speaker@example.com"
+                            maxLength={255}
                           />
                         </div>
 
@@ -442,9 +489,10 @@ const Speakers = () => {
                           <Input
                             value={formData.organization}
                             onChange={(e) =>
-                              setFormData({ ...formData, organization: e.target.value })
+                              setFormData({ ...formData, organization: e.target.value.slice(0, 200) })
                             }
                             placeholder="회사명"
+                            maxLength={200}
                           />
                         </div>
 
@@ -453,9 +501,10 @@ const Speakers = () => {
                           <Input
                             value={formData.department}
                             onChange={(e) =>
-                              setFormData({ ...formData, department: e.target.value })
+                              setFormData({ ...formData, department: e.target.value.slice(0, 100) })
                             }
                             placeholder="개발팀"
+                            maxLength={100}
                           />
                         </div>
 
@@ -464,9 +513,10 @@ const Speakers = () => {
                           <Input
                             value={formData.position}
                             onChange={(e) =>
-                              setFormData({ ...formData, position: e.target.value })
+                              setFormData({ ...formData, position: e.target.value.slice(0, 100) })
                             }
                             placeholder="팀장"
+                            maxLength={100}
                           />
                         </div>
 
@@ -476,13 +526,18 @@ const Speakers = () => {
                             type="tel"
                             value={formData.phone}
                             onChange={(e) =>
-                              setFormData({ ...formData, phone: e.target.value })
+                              setFormData({ ...formData, phone: e.target.value.slice(0, 20) })
                             }
                             placeholder="010-1234-5678"
+                            maxLength={20}
                           />
                         </div>
 
-                        <Button onClick={handleAddSpeaker} className="w-full">
+                        <Button 
+                          onClick={handleAddSpeaker} 
+                          className="w-full"
+                          disabled={!formData.speaker_name.trim()}
+                        >
                           추가하기
                         </Button>
                       </div>
