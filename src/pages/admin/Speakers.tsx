@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ArrowLeft, Plus, Trash2, Download } from "lucide-react";
@@ -38,6 +39,7 @@ const Speakers = () => {
   const navigate = useNavigate();
   const [speakers, setSpeakers] = useState<Speaker[]>([]);
   const [externalSpeakers, setExternalSpeakers] = useState<ExternalSpeaker[]>([]);
+  const [selectedSpeakerIds, setSelectedSpeakerIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isExternal, setIsExternal] = useState(false);
@@ -52,8 +54,13 @@ const Speakers = () => {
 
   useEffect(() => {
     fetchSpeakers();
-    fetchExternalSpeakers();
   }, [projectId]);
+
+  useEffect(() => {
+    if (isExternal && dialogOpen) {
+      fetchExternalSpeakers();
+    }
+  }, [isExternal, dialogOpen]);
 
   const fetchSpeakers = async () => {
     if (!projectId) return;
@@ -95,9 +102,19 @@ const Speakers = () => {
 
       if (data?.speakers) {
         setExternalSpeakers(data.speakers);
+        
+        // 기존 연사 이름 목록
+        const existingSpeakerNames = new Set(speakers.map(s => s.speaker_name.trim().toLowerCase()));
+        
+        // 새로운 연사만 기본 선택
+        const newSpeakerIds = data.speakers
+          .filter((s: ExternalSpeaker) => !existingSpeakerNames.has(s.name.trim().toLowerCase()))
+          .map((s: ExternalSpeaker) => s.id);
+        
+        setSelectedSpeakerIds(new Set(newSpeakerIds));
       }
     } catch (error) {
-      console.error("외부 연사 목록 조회 실패:", error);
+      console.error("연사 목록 조회 실패:", error);
     }
   };
 
@@ -136,29 +153,56 @@ const Speakers = () => {
     }
   };
 
-  const handleImportExternalSpeaker = async (externalId: string) => {
-    const externalSpeaker = externalSpeakers.find((s) => s.id === externalId);
-    if (!externalSpeaker) return;
+  const handleImportSelectedSpeakers = async () => {
+    if (selectedSpeakerIds.size === 0) {
+      toast.error("불러올 연사를 선택해주세요.");
+      return;
+    }
 
-    const { error } = await supabase.from("speaker_sessions").insert({
+    const selectedSpeakers = externalSpeakers.filter(s => selectedSpeakerIds.has(s.id));
+    
+    const speakersToInsert = selectedSpeakers.map(speaker => ({
       project_id: projectId,
       speaker_id: crypto.randomUUID(),
-      external_supplier_id: externalSpeaker.id,
-      speaker_name: externalSpeaker.name,
-      email: externalSpeaker.email || null,
-      organization: externalSpeaker.organization || null,
-      department: externalSpeaker.department || null,
-      position: externalSpeaker.position || null,
-      phone: externalSpeaker.phone || null,
-    });
+      external_supplier_id: speaker.id,
+      speaker_name: speaker.name,
+      email: speaker.email || null,
+      organization: speaker.organization || null,
+      department: speaker.department || null,
+      position: speaker.position || null,
+      phone: speaker.phone || null,
+    }));
+
+    const { error } = await supabase
+      .from("speaker_sessions")
+      .insert(speakersToInsert);
 
     if (error) {
-      toast.error("연사 가져오기 실패");
+      toast.error("연사 불러오기 실패");
       console.error(error);
     } else {
-      toast.success("연사를 가져왔습니다.");
+      toast.success(`${selectedSpeakerIds.size}명의 연사를 불러왔습니다.`);
       setDialogOpen(false);
+      setSelectedSpeakerIds(new Set());
       fetchSpeakers();
+    }
+  };
+
+  const toggleSpeakerSelection = (speakerId: string) => {
+    const newSelection = new Set(selectedSpeakerIds);
+    if (newSelection.has(speakerId)) {
+      newSelection.delete(speakerId);
+    } else {
+      newSelection.add(speakerId);
+    }
+    setSelectedSpeakerIds(newSelection);
+  };
+
+  const toggleAllSpeakers = () => {
+    if (selectedSpeakerIds.size === externalSpeakers.length) {
+      setSelectedSpeakerIds(new Set());
+    } else {
+      setSelectedSpeakerIds(new Set(externalSpeakers.map(s => s.id)));
     }
   };
 
@@ -246,26 +290,72 @@ const Speakers = () => {
                     </div>
 
                     {isExternal ? (
-                      <div className="space-y-2">
-                        <Label>연사 선택</Label>
-                        <Select onValueChange={handleImportExternalSpeaker}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="연사를 선택하세요" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {externalSpeakers.length === 0 ? (
-                              <div className="p-2 text-sm text-muted-foreground">
-                                가져올 연사가 없습니다
-                              </div>
-                            ) : (
-                              externalSpeakers.map((speaker) => (
-                                <SelectItem key={speaker.id} value={speaker.id}>
-                                  {speaker.name} ({speaker.email})
-                                </SelectItem>
-                              ))
-                            )}
-                          </SelectContent>
-                        </Select>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label>연사 선택 ({selectedSpeakerIds.size}명 선택됨)</Label>
+                          {externalSpeakers.length === 0 ? (
+                            <div className="p-8 text-center text-muted-foreground border rounded-lg">
+                              불러올 연사가 없습니다
+                            </div>
+                          ) : (
+                            <div className="border rounded-lg">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead className="w-12">
+                                      <Checkbox
+                                        checked={selectedSpeakerIds.size === externalSpeakers.length && externalSpeakers.length > 0}
+                                        onCheckedChange={toggleAllSpeakers}
+                                      />
+                                    </TableHead>
+                                    <TableHead>이름</TableHead>
+                                    <TableHead>이메일</TableHead>
+                                    <TableHead>소속</TableHead>
+                                    <TableHead>부서</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {externalSpeakers.map((speaker) => {
+                                    const isExisting = speakers.some(
+                                      s => s.speaker_name.trim().toLowerCase() === speaker.name.trim().toLowerCase()
+                                    );
+                                    return (
+                                      <TableRow 
+                                        key={speaker.id}
+                                        className={isExisting ? "bg-muted/50" : ""}
+                                      >
+                                        <TableCell>
+                                          <Checkbox
+                                            checked={selectedSpeakerIds.has(speaker.id)}
+                                            onCheckedChange={() => toggleSpeakerSelection(speaker.id)}
+                                          />
+                                        </TableCell>
+                                        <TableCell className="font-medium">
+                                          {speaker.name}
+                                          {isExisting && (
+                                            <span className="ml-2 text-xs text-muted-foreground">(기존)</span>
+                                          )}
+                                        </TableCell>
+                                        <TableCell>{speaker.email || "-"}</TableCell>
+                                        <TableCell>{speaker.organization || "-"}</TableCell>
+                                        <TableCell>{speaker.department || "-"}</TableCell>
+                                      </TableRow>
+                                    );
+                                  })}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          )}
+                        </div>
+                        {externalSpeakers.length > 0 && (
+                          <Button 
+                            onClick={handleImportSelectedSpeakers} 
+                            className="w-full"
+                            disabled={selectedSpeakerIds.size === 0}
+                          >
+                            선택한 연사 불러오기 ({selectedSpeakerIds.size}명)
+                          </Button>
+                        )}
                       </div>
                     ) : (
                       <div className="space-y-4">
