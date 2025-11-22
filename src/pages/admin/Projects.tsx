@@ -180,7 +180,7 @@ const AdminProjects = () => {
       console.log('External projects:', data);
       setExternalProjects(data?.projects || []);
     } catch (error: any) {
-      toast.error("외부 프로젝트를 불러오는데 실패했습니다.");
+      toast.error("프로젝트를 불러오는데 실패했습니다.");
       console.error(error);
     } finally {
       setIsLoadingExternal(false);
@@ -268,7 +268,7 @@ const AdminProjects = () => {
           });
 
           if (error) throw error;
-          toast.success("외부 프로젝트를 가져왔습니다.");
+          toast.success("프로젝트를 가져왔습니다.");
         } else {
           // 새 로컬 프로젝트 생성
           const { error } = await supabase.from('projects').insert({
@@ -419,20 +419,20 @@ const AdminProjects = () => {
               <DialogHeader>
                 <DialogTitle>{editingProject ? "프로젝트 설정" : "새 프로젝트 만들기"}</DialogTitle>
                 <DialogDescription>
-                  {editingProject ? "페이지 주소와 사용 기간을 설정하세요" : "외부 프로젝트에서 가져오거나 직접 생성하세요"}
+                  {editingProject ? "페이지 주소와 사용 기간을 설정하세요" : "프로젝트를 가져오거나 직접 생성하세요"}
                 </DialogDescription>
               </DialogHeader>
 
               {!editingProject && (
                 <Tabs value={createMode} onValueChange={(value) => setCreateMode(value as "import" | "manual")}>
                   <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="import">외부 프로젝트 가져오기</TabsTrigger>
+                    <TabsTrigger value="import">프로젝트 가져오기</TabsTrigger>
                     <TabsTrigger value="manual">직접 생성</TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="import" className="space-y-4 mt-4">
                     <div className="space-y-2">
-                      <Label>외부 프로젝트 선택</Label>
+                      <Label>프로젝트 선택</Label>
                       {isLoadingExternal ? (
                         <div className="text-center py-4">
                           <p className="text-sm text-muted-foreground">프로젝트 목록을 불러오는 중...</p>
@@ -698,7 +698,7 @@ const AdminProjects = () => {
             <Card className="shadow-elevated">
               <CardContent className="py-12 text-center">
                 <p className="text-muted-foreground">등록된 프로젝트가 없습니다.</p>
-                <p className="text-sm text-muted-foreground mt-2">새 프로젝트를 만들거나 외부 프로젝트를 동기화하세요.</p>
+                <p className="text-sm text-muted-foreground mt-2">새 프로젝트를 만들거나 프로젝트를 동기화하세요.</p>
               </CardContent>
             </Card>
           ) : (
@@ -713,7 +713,7 @@ const AdminProjects = () => {
                           {project.external_project_id && (
                             <Badge variant="secondary" className="gap-1">
                               <ExternalLink className="h-3 w-3" />
-                              외부 연동
+                              동기화 연동
                             </Badge>
                           )}
                           {!project.is_active && (
