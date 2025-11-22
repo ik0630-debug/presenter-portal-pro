@@ -21,33 +21,82 @@ Deno.serve(async (req) => {
       Deno.env.get('EXTERNAL_SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // Get all project_speakers for this project without any joins
-    const { data: projectSpeakers, error: speakersError } = await externalSupabase
+    // First, check project_speakers table structure
+    const { data: samplePS, error: psStructError } = await externalSupabase
       .from('project_speakers')
       .select('*')
+      .eq('project_id', projectId)
+      .limit(1)
+      .maybeSingle();
+
+    if (psStructError) {
+      console.error('Error checking project_speakers structure:', psStructError);
+    } else if (samplePS) {
+      console.log('project_speakers columns:', Object.keys(samplePS));
+      console.log('Sample project_speaker:', samplePS);
+    }
+
+    // Try to get speakers - we'll use the most common foreign key pattern
+    // Try different possible foreign key column names
+    let speakers: any[] = [];
+    let joinError = null;
+
+    // Attempt 1: Try with 'supplier_id' (most common)
+    const { data: speakers1, error: error1 } = await externalSupabase
+      .from('project_speakers')
+      .select(`
+        *,
+        suppliers (
+          id,
+          title,
+          nickname,
+          representative,
+          company_name,
+          email,
+          mobile,
+          phone
+        )
+      `)
       .eq('project_id', projectId);
 
-    if (speakersError) {
-      console.error('Failed to fetch project speakers:', speakersError);
-      throw speakersError;
+    if (!error1 && speakers1) {
+      console.log('Successfully joined with suppliers table');
+      console.log('Sample joined data:', speakers1[0]);
+      
+      speakers = speakers1
+        .filter((ps: any) => ps.suppliers)
+        .map((ps: any) => ({
+          id: ps.suppliers.id,
+          name: ps.suppliers.title || ps.suppliers.nickname || ps.suppliers.representative || ps.suppliers.company_name || 'Unknown',
+          email: ps.suppliers.email || null,
+          organization: ps.suppliers.company_name || null,
+          department: null,
+          position: ps.suppliers.title || null,
+          phone: ps.suppliers.mobile || ps.suppliers.phone || null,
+        }));
+    } else {
+      console.error('Failed to join with suppliers:', error1);
+      joinError = error1;
+      
+      // If join failed, return project_speakers data directly
+      const { data: directData } = await externalSupabase
+        .from('project_speakers')
+        .select('*')
+        .eq('project_id', projectId);
+      
+      if (directData) {
+        console.log('Falling back to direct project_speakers data');
+        speakers = directData.map((ps: any) => ({
+          id: ps.id,
+          name: ps.speaker_name || ps.name || ps.title || 'Unknown',
+          email: ps.email || ps.speaker_email || null,
+          organization: ps.organization || ps.company || null,
+          department: ps.department || null,
+          position: ps.position || null,
+          phone: ps.phone || ps.mobile || null,
+        }));
+      }
     }
-
-    console.log(`Found ${projectSpeakers?.length || 0} project_speakers`);
-    if (projectSpeakers && projectSpeakers.length > 0) {
-      console.log('First project_speaker columns:', Object.keys(projectSpeakers[0]));
-      console.log('First project_speaker data:', projectSpeakers[0]);
-    }
-
-    // Transform the data - map all possible field names to our interface
-    const speakers = projectSpeakers?.map((ps: any) => ({
-      id: ps.id || ps.speaker_id || crypto.randomUUID(),
-      name: ps.speaker_name || ps.name || ps.full_name || ps.title || 'Unknown',
-      email: ps.speaker_email || ps.email || ps.contact_email || null,
-      organization: ps.organization || ps.company || ps.institution || null,
-      department: ps.department || ps.dept || null,
-      position: ps.position || ps.job_title || ps.title || null,
-      phone: ps.speaker_phone || ps.phone || ps.mobile || ps.contact_phone || null,
-    })) || [];
 
     console.log(`Returning ${speakers.length} speakers`);
 
@@ -72,4 +121,3 @@ Deno.serve(async (req) => {
     );
   }
 });
-
