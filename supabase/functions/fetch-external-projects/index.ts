@@ -13,10 +13,11 @@ Deno.serve(async (req) => {
   try {
     const EXTERNAL_SUPABASE_URL = Deno.env.get('EXTERNAL_SUPABASE_URL');
     const EXTERNAL_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRsbHdzZWJwa3ZjdnFhY2dtdnNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE3NjQ0MzEsImV4cCI6MjA3NzM0MDQzMX0.buBXmNO0wl618u7WXxkg3fgi8vyU3XNH3rRQGCWmcJM';
+    const EXTERNAL_SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('EXTERNAL_SUPABASE_SERVICE_ROLE_KEY');
     const EXTERNAL_ADMIN_EMAIL = Deno.env.get('EXTERNAL_ADMIN_EMAIL');
     const EXTERNAL_ADMIN_PASSWORD = Deno.env.get('EXTERNAL_ADMIN_PASSWORD');
 
-    if (!EXTERNAL_SUPABASE_URL || !EXTERNAL_ADMIN_EMAIL || !EXTERNAL_ADMIN_PASSWORD) {
+    if (!EXTERNAL_SUPABASE_URL || !EXTERNAL_SUPABASE_SERVICE_ROLE_KEY || !EXTERNAL_ADMIN_EMAIL || !EXTERNAL_ADMIN_PASSWORD) {
       throw new Error('Missing required environment variables');
     }
 
@@ -54,8 +55,8 @@ Deno.serve(async (req) => {
 
     const response = await fetch(apiUrl, {
       headers: {
-        'apikey': EXTERNAL_SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${jwtToken}`,
+        'apikey': EXTERNAL_SUPABASE_SERVICE_ROLE_KEY,
+        'Authorization': `Bearer ${EXTERNAL_SUPABASE_SERVICE_ROLE_KEY}`,
       },
     });
 
