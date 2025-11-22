@@ -21,21 +21,7 @@ Deno.serve(async (req) => {
       Deno.env.get('EXTERNAL_SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // First, check project_speakers table structure
-    const { data: sampleProjectSpeaker, error: psError } = await externalSupabase
-      .from('project_speakers')
-      .select('*')
-      .eq('project_id', projectId)
-      .limit(1)
-      .maybeSingle();
-
-    if (psError) {
-      console.error('Failed to fetch project_speakers structure:', psError);
-    } else if (sampleProjectSpeaker) {
-      console.log('project_speakers columns:', Object.keys(sampleProjectSpeaker));
-    }
-
-    // Get all project_speakers for this project
+    // Get all project_speakers for this project without any joins
     const { data: projectSpeakers, error: speakersError } = await externalSupabase
       .from('project_speakers')
       .select('*')
@@ -46,23 +32,24 @@ Deno.serve(async (req) => {
       throw speakersError;
     }
 
-    console.log('Found project_speakers:', projectSpeakers?.length || 0);
+    console.log(`Found ${projectSpeakers?.length || 0} project_speakers`);
     if (projectSpeakers && projectSpeakers.length > 0) {
-      console.log('First project_speaker:', projectSpeakers[0]);
+      console.log('First project_speaker columns:', Object.keys(projectSpeakers[0]));
+      console.log('First project_speaker data:', projectSpeakers[0]);
     }
 
-    // Transform the data based on what fields are available
+    // Transform the data - map all possible field names to our interface
     const speakers = projectSpeakers?.map((ps: any) => ({
-      id: ps.id,
-      name: ps.speaker_name || ps.name || ps.supplier_name || 'Unknown',
-      email: ps.email || ps.speaker_email || null,
-      organization: ps.organization || ps.company || null,
-      department: ps.department || null,
-      position: ps.position || ps.job_title || null,
-      phone: ps.phone || ps.mobile || ps.contact_phone || null,
+      id: ps.id || ps.speaker_id || crypto.randomUUID(),
+      name: ps.speaker_name || ps.name || ps.full_name || ps.title || 'Unknown',
+      email: ps.speaker_email || ps.email || ps.contact_email || null,
+      organization: ps.organization || ps.company || ps.institution || null,
+      department: ps.department || ps.dept || null,
+      position: ps.position || ps.job_title || ps.title || null,
+      phone: ps.speaker_phone || ps.phone || ps.mobile || ps.contact_phone || null,
     })) || [];
 
-    console.log(`Found ${speakers.length} speakers`);
+    console.log(`Returning ${speakers.length} speakers`);
 
     return new Response(
       JSON.stringify({ speakers }),
@@ -85,3 +72,4 @@ Deno.serve(async (req) => {
     );
   }
 });
+
