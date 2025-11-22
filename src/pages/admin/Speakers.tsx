@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,12 +35,20 @@ interface ExternalSpeaker {
   phone?: string;
 }
 
+interface ConflictingSpeaker {
+  external: ExternalSpeaker;
+  existing: Speaker;
+  conflicts: string[];
+}
+
 const Speakers = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
   const [speakers, setSpeakers] = useState<Speaker[]>([]);
   const [externalSpeakers, setExternalSpeakers] = useState<ExternalSpeaker[]>([]);
   const [selectedSpeakerIds, setSelectedSpeakerIds] = useState<Set<string>>(new Set());
+  const [conflictingSpeakers, setConflictingSpeakers] = useState<ConflictingSpeaker[]>([]);
+  const [showConflictDialog, setShowConflictDialog] = useState(false);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isExternal, setIsExternal] = useState(false);
@@ -161,6 +170,49 @@ const Speakers = () => {
 
     const selectedSpeakers = externalSpeakers.filter(s => selectedSpeakerIds.has(s.id));
     
+    // 동명이인이지만 연락처가 다른 경우 찾기
+    const conflicts: ConflictingSpeaker[] = [];
+    
+    selectedSpeakers.forEach(extSpeaker => {
+      const existingSpeaker = speakers.find(
+        s => s.speaker_name.trim().toLowerCase() === extSpeaker.name.trim().toLowerCase()
+      );
+      
+      if (existingSpeaker) {
+        const conflictReasons: string[] = [];
+        
+        // 이메일 비교
+        if (extSpeaker.email && existingSpeaker.email && 
+            extSpeaker.email.trim().toLowerCase() !== existingSpeaker.email.trim().toLowerCase()) {
+          conflictReasons.push(`이메일: ${existingSpeaker.email} → ${extSpeaker.email}`);
+        }
+        
+        // 전화번호 비교
+        if (extSpeaker.phone && existingSpeaker.phone && 
+            extSpeaker.phone.replace(/\D/g, '') !== existingSpeaker.phone.replace(/\D/g, '')) {
+          conflictReasons.push(`휴대전화: ${existingSpeaker.phone} → ${extSpeaker.phone}`);
+        }
+        
+        if (conflictReasons.length > 0) {
+          conflicts.push({
+            external: extSpeaker,
+            existing: existingSpeaker,
+            conflicts: conflictReasons,
+          });
+        }
+      }
+    });
+    
+    if (conflicts.length > 0) {
+      setConflictingSpeakers(conflicts);
+      setShowConflictDialog(true);
+      return;
+    }
+    
+    await proceedWithImport(selectedSpeakers);
+  };
+
+  const proceedWithImport = async (selectedSpeakers: ExternalSpeaker[]) => {
     const speakersToInsert = selectedSpeakers.map(speaker => ({
       project_id: projectId,
       speaker_id: crypto.randomUUID(),
@@ -181,9 +233,10 @@ const Speakers = () => {
       toast.error("연사 불러오기 실패");
       console.error(error);
     } else {
-      toast.success(`${selectedSpeakerIds.size}명의 연사를 불러왔습니다.`);
+      toast.success(`${selectedSpeakers.length}명의 연사를 불러왔습니다.`);
       setDialogOpen(false);
       setSelectedSpeakerIds(new Set());
+      setShowConflictDialog(false);
       fetchSpeakers();
     }
   };
@@ -487,6 +540,62 @@ const Speakers = () => {
           </CardContent>
         </Card>
       </main>
+
+      {/* 동명이인 확인 다이얼로그 */}
+      <AlertDialog open={showConflictDialog} onOpenChange={setShowConflictDialog}>
+        <AlertDialogContent className="max-w-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>동명이인 확인 필요</AlertDialogTitle>
+            <AlertDialogDescription>
+              이름이 같지만 연락처가 다른 연사가 발견되었습니다. 동일 인물인지 확인해주세요.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          <div className="space-y-4 max-h-96 overflow-y-auto">
+            {conflictingSpeakers.map((conflict, index) => (
+              <div key={index} className="p-4 border rounded-lg space-y-2">
+                <div className="font-semibold text-lg">{conflict.external.name}</div>
+                <div className="space-y-1 text-sm">
+                  <div className="text-muted-foreground">차이점:</div>
+                  {conflict.conflicts.map((diff, i) => (
+                    <div key={i} className="pl-4 text-destructive">• {diff}</div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t text-sm">
+                  <div>
+                    <div className="font-medium mb-1">기존 정보</div>
+                    <div className="space-y-0.5 text-muted-foreground">
+                      <div>이메일: {conflict.existing.email || "-"}</div>
+                      <div>전화: {conflict.existing.phone || "-"}</div>
+                      <div>소속: {conflict.existing.organization || "-"}</div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-medium mb-1">불러올 정보</div>
+                    <div className="space-y-0.5 text-muted-foreground">
+                      <div>이메일: {conflict.external.email || "-"}</div>
+                      <div>전화: {conflict.external.phone || "-"}</div>
+                      <div>소속: {conflict.external.organization || "-"}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const selectedSpeakers = externalSpeakers.filter(s => selectedSpeakerIds.has(s.id));
+                proceedWithImport(selectedSpeakers);
+              }}
+            >
+              그래도 불러오기
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
