@@ -120,52 +120,17 @@ const AdminProjects = () => {
 
   const fetchProjects = async () => {
     try {
-      console.log('Fetching projects...');
+      console.log('Fetching projects from local DB...');
       
-      // 로컬 DB에서 설정 정보 가져오기
-      const { data: localProjects, error: localError } = await supabase
+      const { data, error } = await supabase
         .from('projects')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (localError) throw localError;
-
-      // 외부 프로젝트 정보 가져오기
-      const { data: externalData, error: externalError } = await supabase.functions.invoke('get-external-projects');
+      if (error) throw error;
       
-      if (externalError) {
-        console.warn('Failed to fetch external projects:', externalError);
-      }
-
-      const externalProjects = externalData?.projects || [];
-      
-      // 로컬 프로젝트와 외부 프로젝트 정보 합치기
-      const mergedProjects = (localProjects || []).map(localProject => {
-        if (localProject.external_project_id) {
-          // 외부 프로젝트 찾기
-          const externalProject = externalProjects.find(
-            (ep: any) => ep.id === localProject.external_project_id
-          );
-          
-          if (externalProject) {
-            // 외부 프로젝트 정보 + 로컬 설정 합치기
-            return {
-              ...externalProject,
-              id: localProject.id, // 로컬 DB ID 사용
-              slug: localProject.slug,
-              is_active: localProject.is_active,
-              start_date: localProject.start_date, // 사용 시작일
-              end_date: localProject.end_date, // 사용 종료일
-              external_project_id: localProject.external_project_id,
-            };
-          }
-        }
-        // 외부 프로젝트가 없거나 매칭 안되는 경우 로컬 정보만 사용
-        return localProject;
-      });
-      
-      console.log('Merged projects:', mergedProjects);
-      setProjects(mergedProjects);
+      console.log('Local projects:', data);
+      setProjects(data || []);
     } catch (error: any) {
       toast.error("프로젝트 목록을 불러오는데 실패했습니다.");
       console.error(error);
