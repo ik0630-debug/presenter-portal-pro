@@ -21,20 +21,26 @@ Deno.serve(async (req) => {
       Deno.env.get('EXTERNAL_SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // Get speakers from project_speakers table
+    // First, get the suppliers table structure to see what columns are available
+    const { data: sampleSupplier, error: structureError } = await externalSupabase
+      .from('suppliers')
+      .select('*')
+      .limit(1)
+      .single();
+
+    if (structureError) {
+      console.error('Failed to fetch supplier structure:', structureError);
+    } else {
+      console.log('Supplier table columns:', Object.keys(sampleSupplier || {}));
+    }
+
+    // Get project_speakers with supplier relationship
+    // Try to get all fields from suppliers to see what's available
     const { data: projectSpeakers, error: speakersError } = await externalSupabase
       .from('project_speakers')
       .select(`
         supplier_id,
-        suppliers (
-          id,
-          name,
-          email,
-          organization,
-          department,
-          position,
-          phone
-        )
+        suppliers (*)
       `)
       .eq('project_id', projectId);
 
@@ -43,18 +49,23 @@ Deno.serve(async (req) => {
       throw speakersError;
     }
 
-    // Transform the data
+    console.log('Project speakers data:', projectSpeakers);
+
+    // Transform the data - handle different possible field names
     const speakers = projectSpeakers
       ?.filter((ps: any) => ps.suppliers)
-      .map((ps: any) => ({
-        id: ps.suppliers.id,
-        name: ps.suppliers.name,
-        email: ps.suppliers.email,
-        organization: ps.suppliers.organization,
-        department: ps.suppliers.department,
-        position: ps.suppliers.position,
-        phone: ps.suppliers.phone,
-      })) || [];
+      .map((ps: any) => {
+        const supplier = ps.suppliers;
+        return {
+          id: supplier.id,
+          name: supplier.name || supplier.supplier_name || supplier.full_name || supplier.title || 'Unknown',
+          email: supplier.email || supplier.contact_email || null,
+          organization: supplier.organization || supplier.company || null,
+          department: supplier.department || null,
+          position: supplier.position || supplier.job_title || null,
+          phone: supplier.phone || supplier.mobile || supplier.contact_phone || null,
+        };
+      }) || [];
 
     console.log(`Found ${speakers.length} speakers`);
 
