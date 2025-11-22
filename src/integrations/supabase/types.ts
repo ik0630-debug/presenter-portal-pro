@@ -488,6 +488,7 @@ export type Database = {
           external_supplier_id: string | null
           id: string
           organization: string | null
+          phone: string | null
           position: string | null
           presentation_date: string | null
           project_id: string | null
@@ -503,6 +504,7 @@ export type Database = {
           external_supplier_id?: string | null
           id?: string
           organization?: string | null
+          phone?: string | null
           position?: string | null
           presentation_date?: string | null
           project_id?: string | null
@@ -518,6 +520,7 @@ export type Database = {
           external_supplier_id?: string | null
           id?: string
           organization?: string | null
+          phone?: string | null
           position?: string | null
           presentation_date?: string | null
           project_id?: string | null
