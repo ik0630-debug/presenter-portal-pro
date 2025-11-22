@@ -21,51 +21,46 @@ Deno.serve(async (req) => {
       Deno.env.get('EXTERNAL_SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // First, get the suppliers table structure to see what columns are available
-    const { data: sampleSupplier, error: structureError } = await externalSupabase
-      .from('suppliers')
+    // First, check project_speakers table structure
+    const { data: sampleProjectSpeaker, error: psError } = await externalSupabase
+      .from('project_speakers')
       .select('*')
+      .eq('project_id', projectId)
       .limit(1)
-      .single();
+      .maybeSingle();
 
-    if (structureError) {
-      console.error('Failed to fetch supplier structure:', structureError);
-    } else {
-      console.log('Supplier table columns:', Object.keys(sampleSupplier || {}));
+    if (psError) {
+      console.error('Failed to fetch project_speakers structure:', psError);
+    } else if (sampleProjectSpeaker) {
+      console.log('project_speakers columns:', Object.keys(sampleProjectSpeaker));
     }
 
-    // Get project_speakers with supplier relationship
-    // Try to get all fields from suppliers to see what's available
+    // Get all project_speakers for this project
     const { data: projectSpeakers, error: speakersError } = await externalSupabase
       .from('project_speakers')
-      .select(`
-        supplier_id,
-        suppliers (*)
-      `)
+      .select('*')
       .eq('project_id', projectId);
 
     if (speakersError) {
-      console.error('Failed to fetch speakers:', speakersError);
+      console.error('Failed to fetch project speakers:', speakersError);
       throw speakersError;
     }
 
-    console.log('Project speakers data:', projectSpeakers);
+    console.log('Found project_speakers:', projectSpeakers?.length || 0);
+    if (projectSpeakers && projectSpeakers.length > 0) {
+      console.log('First project_speaker:', projectSpeakers[0]);
+    }
 
-    // Transform the data - handle different possible field names
-    const speakers = projectSpeakers
-      ?.filter((ps: any) => ps.suppliers)
-      .map((ps: any) => {
-        const supplier = ps.suppliers;
-        return {
-          id: supplier.id,
-          name: supplier.name || supplier.supplier_name || supplier.full_name || supplier.title || 'Unknown',
-          email: supplier.email || supplier.contact_email || null,
-          organization: supplier.organization || supplier.company || null,
-          department: supplier.department || null,
-          position: supplier.position || supplier.job_title || null,
-          phone: supplier.phone || supplier.mobile || supplier.contact_phone || null,
-        };
-      }) || [];
+    // Transform the data based on what fields are available
+    const speakers = projectSpeakers?.map((ps: any) => ({
+      id: ps.id,
+      name: ps.speaker_name || ps.name || ps.supplier_name || 'Unknown',
+      email: ps.email || ps.speaker_email || null,
+      organization: ps.organization || ps.company || null,
+      department: ps.department || null,
+      position: ps.position || ps.job_title || null,
+      phone: ps.phone || ps.mobile || ps.contact_phone || null,
+    })) || [];
 
     console.log(`Found ${speakers.length} speakers`);
 
