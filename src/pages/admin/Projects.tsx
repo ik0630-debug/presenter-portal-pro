@@ -51,12 +51,12 @@ interface Project {
 
 interface ExternalProject {
   id: string;
-  title?: string;
-  project_name: string;
-  event_name?: string;
+  title: string; // 외부 DB는 title 필드 사용
   description: string | null;
   start_date: string | null;
   end_date: string | null;
+  location?: string;
+  speaker_portal_slug?: string | null;
   speakers: Array<{
     id: string;
     name: string;
@@ -192,21 +192,21 @@ const AdminProjects = () => {
     const selectedProject = externalProjects.find(p => p.id === projectId);
     if (selectedProject) {
       // 자동으로 slug 생성
-      const autoSlug = selectedProject.project_name
+      const autoSlug = selectedProject.title
         .toLowerCase()
         .replace(/[^a-z0-9가-힣\s-]/g, '')
         .replace(/\s+/g, '-')
         .replace(/-+/g, '-')
         .replace(/^-|-$/g, '');
       
-      // 외부 앱의 프로젝트명 = 이 앱의 행사명
+      // 외부 DB의 title을 project_name과 event_name으로 매핑
       setFormData({
-        project_name: selectedProject.project_name,
-        event_name: selectedProject.project_name, // 외부의 프로젝트명을 행사명으로
+        project_name: selectedProject.title,
+        event_name: selectedProject.title,
         description: selectedProject.description || "",
         start_date: selectedProject.start_date?.split('T')[0] || "",
         end_date: selectedProject.end_date?.split('T')[0] || "",
-        slug: autoSlug,
+        slug: selectedProject.speaker_portal_slug || autoSlug,
         is_active: true,
       });
     }
@@ -445,7 +445,7 @@ const AdminProjects = () => {
                           <SelectContent>
                             {externalProjects.map((project) => (
                               <SelectItem key={project.id} value={project.id}>
-                                {project.project_name || '제목 없음'}
+                                {project.title || '제목 없음'}
                                 {project.start_date && ` (${new Date(project.start_date).toLocaleDateString('ko-KR')})`}
                               </SelectItem>
                             ))}
