@@ -66,13 +66,12 @@ Deno.serve(async (req) => {
     // Transform the data using the joined suppliers and professional_profiles tables
     const speakers = projectSpeakers?.map((ps: any) => {
       const supplier = ps.suppliers;
-      // professional_profiles is an array, get the first one
-      const profile = supplier?.professional_profiles?.[0] || {};
+      // professional_profiles is returned as an object (not array) when using foreign key join
+      const profile = supplier?.professional_profiles || {};
       
       console.log('Processing speaker:', {
         supplier_id: supplier?.id,
         has_professional_profiles: !!supplier?.professional_profiles,
-        profile_count: supplier?.professional_profiles?.length || 0,
         profile_data: profile
       });
       
