@@ -35,10 +35,7 @@ Deno.serve(async (req) => {
           company_name,
           email,
           mobile,
-          phone,
-          organization,
-          department,
-          position
+          phone
         )
       `)
       .eq('project_id', projectId);
@@ -54,8 +51,8 @@ Deno.serve(async (req) => {
     }
 
     // Transform the data using the joined suppliers table
-    // Note: In the external DB, company_name often contains the person's name
-    // title, nickname, representative can be null
+    // Note: External DB doesn't have organization/department/position fields
+    // We only use fields available in the suppliers table
     const speakers = projectSpeakers?.map((ps: any) => {
       const supplier = ps.suppliers;
       return {
@@ -63,10 +60,10 @@ Deno.serve(async (req) => {
         // Use company_name as the primary name source (it contains person's name)
         name: supplier?.company_name || supplier?.nickname || supplier?.representative || supplier?.title || 'Unknown',
         email: supplier?.email || null,
-        // Map organization, department, position from supplier fields
-        organization: supplier?.organization || null,
-        department: supplier?.department || null,
-        position: supplier?.position || supplier?.title || null,
+        // External DB doesn't have these fields, set to null
+        organization: null,
+        department: null,
+        position: supplier?.title || null, // Use title as position if available
         phone: supplier?.mobile || supplier?.phone || null,
       };
     }) || [];
