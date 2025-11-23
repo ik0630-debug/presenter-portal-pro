@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Trash2, Download } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Download, Edit } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Speaker {
@@ -82,7 +82,9 @@ const Speakers = () => {
   const [showConflictDialog, setShowConflictDialog] = useState(false);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [isExternal, setIsExternal] = useState(false);
+  const [editingSpeaker, setEditingSpeaker] = useState<Speaker | null>(null);
   const [formData, setFormData] = useState({
     speaker_name: "",
     email: "",
@@ -301,6 +303,72 @@ const Speakers = () => {
       setSelectedSpeakerIds(new Set());
     } else {
       setSelectedSpeakerIds(new Set(externalSpeakers.map(s => s.id)));
+    }
+  };
+
+  const handleEditSpeaker = (speaker: Speaker) => {
+    setEditingSpeaker(speaker);
+    setFormData({
+      speaker_name: speaker.speaker_name || "",
+      email: speaker.email || "",
+      organization: speaker.organization || "",
+      department: speaker.department || "",
+      position: speaker.position || "",
+      phone: speaker.phone || "",
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleUpdateSpeaker = async () => {
+    if (!editingSpeaker) return;
+
+    try {
+      // Validate input data
+      const validatedData = speakerSchema.parse({
+        speaker_name: formData.speaker_name,
+        email: formData.email || "",
+        organization: formData.organization || "",
+        department: formData.department || "",
+        position: formData.position || "",
+        phone: formData.phone || "",
+      });
+
+      const { error } = await supabase
+        .from("speaker_sessions")
+        .update({
+          speaker_name: validatedData.speaker_name,
+          email: validatedData.email || null,
+          organization: validatedData.organization || null,
+          department: validatedData.department || null,
+          position: validatedData.position || null,
+          phone: validatedData.phone || null,
+        })
+        .eq("id", editingSpeaker.id);
+
+      if (error) {
+        toast.error("연사 정보 수정 실패");
+        console.error(error);
+      } else {
+        toast.success("연사 정보가 수정되었습니다.");
+        setEditDialogOpen(false);
+        setEditingSpeaker(null);
+        setFormData({
+          speaker_name: "",
+          email: "",
+          organization: "",
+          department: "",
+          position: "",
+          phone: "",
+        });
+        fetchSpeakers();
+      }
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const firstError = error.errors[0];
+        toast.error(firstError.message);
+      } else {
+        toast.error("입력값 검증 실패");
+      }
     }
   };
 
@@ -579,13 +647,22 @@ const Speakers = () => {
                       <TableCell>{speaker.position || "-"}</TableCell>
                       <TableCell>{speaker.phone || "-"}</TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDeleteSpeaker(speaker.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEditSpeaker(speaker)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteSpeaker(speaker.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -595,6 +672,104 @@ const Speakers = () => {
           </CardContent>
         </Card>
       </main>
+
+      {/* 연사 정보 수정 다이얼로그 */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>연사 정보 수정</DialogTitle>
+            <DialogDescription>
+              연사의 정보를 수정할 수 있습니다.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>
+                이름 <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                value={formData.speaker_name}
+                onChange={(e) =>
+                  setFormData({ ...formData, speaker_name: e.target.value.slice(0, 100) })
+                }
+                placeholder="홍길동"
+                maxLength={100}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>이메일</Label>
+              <Input
+                type="email"
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value.slice(0, 255) })
+                }
+                placeholder="speaker@example.com"
+                maxLength={255}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>소속</Label>
+              <Input
+                value={formData.organization}
+                onChange={(e) =>
+                  setFormData({ ...formData, organization: e.target.value.slice(0, 200) })
+                }
+                placeholder="회사명"
+                maxLength={200}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>부서</Label>
+              <Input
+                value={formData.department}
+                onChange={(e) =>
+                  setFormData({ ...formData, department: e.target.value.slice(0, 100) })
+                }
+                placeholder="개발팀"
+                maxLength={100}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>직함</Label>
+              <Input
+                value={formData.position}
+                onChange={(e) =>
+                  setFormData({ ...formData, position: e.target.value.slice(0, 100) })
+                }
+                placeholder="팀장"
+                maxLength={100}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>휴대전화</Label>
+              <Input
+                type="tel"
+                value={formData.phone}
+                onChange={(e) =>
+                  setFormData({ ...formData, phone: e.target.value.slice(0, 20) })
+                }
+                placeholder="010-1234-5678"
+                maxLength={20}
+              />
+            </div>
+
+            <Button 
+              onClick={handleUpdateSpeaker} 
+              className="w-full"
+              disabled={!formData.speaker_name.trim()}
+            >
+              수정하기
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* 동명이인 확인 다이얼로그 */}
       <AlertDialog open={showConflictDialog} onOpenChange={setShowConflictDialog}>
