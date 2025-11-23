@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
       console.log('Sample project_speakers:', JSON.stringify(projectSpeakers, null, 2));
     }
 
-    // 3. Check suppliers table
+    // 3. Check suppliers table (all types)
     console.log('\n--- Checking suppliers table ---');
     const { data: suppliers, error: suppliersError } = await externalSupabase
       .from('suppliers')
@@ -63,7 +63,36 @@ Deno.serve(async (req) => {
       console.log('Sample suppliers:', JSON.stringify(suppliers, null, 2));
     }
 
-    // 4. Check speaker_sessions table (현재 앱)
+    // 3-2. Check suppliers with company_type = 'speaker'
+    console.log('\n--- Checking speaker suppliers ---');
+    const { data: speakerSuppliers, error: speakerSuppliersError } = await externalSupabase
+      .from('suppliers')
+      .select('*')
+      .eq('company_type', 'speaker')
+      .limit(5);
+
+    if (speakerSuppliersError) {
+      console.error('Speaker suppliers error:', speakerSuppliersError);
+    } else {
+      console.log(`Found ${speakerSuppliers?.length || 0} speaker suppliers`);
+      console.log('Sample speaker suppliers:', JSON.stringify(speakerSuppliers, null, 2));
+    }
+
+    // 4. Check professional_profiles table
+    console.log('\n--- Checking professional_profiles table ---');
+    const { data: profiles, error: profilesError } = await externalSupabase
+      .from('professional_profiles')
+      .select('*')
+      .limit(5);
+
+    if (profilesError) {
+      console.error('Professional profiles error:', profilesError);
+    } else {
+      console.log(`Found ${profiles?.length || 0} professional_profiles`);
+      console.log('Sample profiles:', JSON.stringify(profiles, null, 2));
+    }
+
+    // 5. Check speaker_sessions table (현재 앱)
     console.log('\n--- Checking speaker_sessions in external DB ---');
     const { data: sessions, error: sessionsError } = await externalSupabase
       .from('speaker_sessions')
@@ -94,6 +123,16 @@ Deno.serve(async (req) => {
           count: suppliers?.length || 0,
           data: suppliers,
           error: suppliersError?.message,
+        },
+        speaker_suppliers: {
+          count: speakerSuppliers?.length || 0,
+          data: speakerSuppliers,
+          error: speakerSuppliersError?.message,
+        },
+        professional_profiles: {
+          count: profiles?.length || 0,
+          data: profiles,
+          error: profilesError?.message,
         },
         speaker_sessions: {
           count: sessions?.length || 0,
