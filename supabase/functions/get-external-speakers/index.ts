@@ -22,21 +22,13 @@ Deno.serve(async (req) => {
     );
 
     // Join project_speakers with suppliers using speaker_id
+    // Get all supplier fields to access profile data
     const { data: projectSpeakers, error: fetchError } = await externalSupabase
       .from('project_speakers')
       .select(`
         id,
         speaker_id,
-        suppliers!project_speakers_speaker_id_fkey (
-          id,
-          title,
-          nickname,
-          representative,
-          company_name,
-          email,
-          mobile,
-          phone
-        )
+        suppliers!project_speakers_speaker_id_fkey (*)
       `)
       .eq('project_id', projectId);
 
