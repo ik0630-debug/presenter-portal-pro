@@ -21,14 +21,27 @@ Deno.serve(async (req) => {
       Deno.env.get('EXTERNAL_SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // Join project_speakers with suppliers using speaker_id
-    // Get all supplier fields to access profile data
+    // Join project_speakers with suppliers and professional_profiles
     const { data: projectSpeakers, error: fetchError } = await externalSupabase
       .from('project_speakers')
       .select(`
         id,
         speaker_id,
-        suppliers!project_speakers_speaker_id_fkey (*)
+        suppliers!project_speakers_speaker_id_fkey (
+          id,
+          company_name,
+          nickname,
+          representative,
+          title,
+          email,
+          mobile,
+          phone,
+          professional_profiles!professional_profiles_supplier_id_fkey (
+            organization,
+            department,
+            title
+          )
+        )
       `)
       .eq('project_id', projectId);
 
@@ -41,23 +54,26 @@ Deno.serve(async (req) => {
     if (projectSpeakers && projectSpeakers.length > 0) {
       console.log('First joined speaker:', JSON.stringify(projectSpeakers[0], null, 2));
       const firstSupplier = projectSpeakers[0].suppliers as any;
-      console.log('Supplier profile check:', {
+      const firstProfile = firstSupplier?.professional_profiles?.[0];
+      console.log('Professional profile check:', {
         has_supplier: !!firstSupplier,
-        has_profile: !!firstSupplier?.profile,
-        profile_keys: firstSupplier?.profile ? Object.keys(firstSupplier.profile) : []
+        has_professional_profiles: !!firstSupplier?.professional_profiles,
+        profile_count: firstSupplier?.professional_profiles?.length || 0,
+        profile_data: firstProfile
       });
     }
 
-    // Transform the data using the joined suppliers table
-    // Note: profile data is nested in supplier.profile object
+    // Transform the data using the joined suppliers and professional_profiles tables
     const speakers = projectSpeakers?.map((ps: any) => {
       const supplier = ps.suppliers;
-      const profile = supplier?.profile || {};
+      // professional_profiles is an array, get the first one
+      const profile = supplier?.professional_profiles?.[0] || {};
       
       console.log('Processing speaker:', {
         supplier_id: supplier?.id,
-        has_profile: !!supplier?.profile,
-        profile_data: supplier?.profile
+        has_professional_profiles: !!supplier?.professional_profiles,
+        profile_count: supplier?.professional_profiles?.length || 0,
+        profile_data: profile
       });
       
       return {
@@ -65,7 +81,7 @@ Deno.serve(async (req) => {
         // Use company_name as the primary name source (it contains person's name)
         name: supplier?.company_name || supplier?.nickname || supplier?.representative || supplier?.title || 'Unknown',
         email: supplier?.email || null,
-        // Access nested profile fields
+        // Access professional_profiles fields
         organization: profile.organization || null,
         department: profile.department || null,
         position: profile.title || supplier?.title || null,
