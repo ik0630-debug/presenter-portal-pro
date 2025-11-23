@@ -35,7 +35,10 @@ Deno.serve(async (req) => {
           company_name,
           email,
           mobile,
-          phone
+          phone,
+          organization,
+          department,
+          position
         )
       `)
       .eq('project_id', projectId);
@@ -60,11 +63,10 @@ Deno.serve(async (req) => {
         // Use company_name as the primary name source (it contains person's name)
         name: supplier?.company_name || supplier?.nickname || supplier?.representative || supplier?.title || 'Unknown',
         email: supplier?.email || null,
-        // Since company_name is the person's name, we don't have organization info
-        organization: null,
-        department: null,
-        // title could be their position, but it's often null
-        position: supplier?.title || null,
+        // Map organization, department, position from supplier fields
+        organization: supplier?.organization || null,
+        department: supplier?.department || null,
+        position: supplier?.position || supplier?.title || null,
         phone: supplier?.mobile || supplier?.phone || null,
       };
     }) || [];
