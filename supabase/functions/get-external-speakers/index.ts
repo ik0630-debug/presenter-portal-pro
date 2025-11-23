@@ -47,23 +47,36 @@ Deno.serve(async (req) => {
 
     console.log(`Found ${projectSpeakers?.length || 0} project_speakers`);
     if (projectSpeakers && projectSpeakers.length > 0) {
-      console.log('First joined speaker:', projectSpeakers[0]);
+      console.log('First joined speaker:', JSON.stringify(projectSpeakers[0], null, 2));
+      const firstSupplier = projectSpeakers[0].suppliers as any;
+      console.log('Supplier profile check:', {
+        has_supplier: !!firstSupplier,
+        has_profile: !!firstSupplier?.profile,
+        profile_keys: firstSupplier?.profile ? Object.keys(firstSupplier.profile) : []
+      });
     }
 
     // Transform the data using the joined suppliers table
-    // Note: External DB doesn't have organization/department/position fields
-    // We only use fields available in the suppliers table
+    // Note: profile data is nested in supplier.profile object
     const speakers = projectSpeakers?.map((ps: any) => {
       const supplier = ps.suppliers;
+      const profile = supplier?.profile || {};
+      
+      console.log('Processing speaker:', {
+        supplier_id: supplier?.id,
+        has_profile: !!supplier?.profile,
+        profile_data: supplier?.profile
+      });
+      
       return {
         id: supplier?.id || ps.speaker_id,
         // Use company_name as the primary name source (it contains person's name)
         name: supplier?.company_name || supplier?.nickname || supplier?.representative || supplier?.title || 'Unknown',
         email: supplier?.email || null,
-        // External DB doesn't have these fields, set to null
-        organization: null,
-        department: null,
-        position: supplier?.title || null, // Use title as position if available
+        // Access nested profile fields
+        organization: profile.organization || null,
+        department: profile.department || null,
+        position: profile.title || supplier?.title || null,
         phone: supplier?.mobile || supplier?.phone || null,
       };
     }) || [];
