@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { AlertCircle, CheckCircle2, X, Loader2 } from "lucide-react";
 import SignatureCanvas from "react-signature-canvas";
@@ -208,15 +209,17 @@ const ConsentChecklist = ({ projectId: urlProjectId, speakerEmail: urlSpeakerEma
     .filter(item => item.required)
     .every(item => consents[item.field_key] === true);
 
-  const handleConsentChange = (fieldKey: string, value: boolean) => {
-    setConsents(prev => ({ ...prev, [fieldKey]: value }));
+  const handleConsentChange = (fieldKey: string, checked: boolean) => {
+    setConsents(prev => ({ ...prev, [fieldKey]: checked }));
   };
 
-  const handleComplete = () => {
-    if (!allRequiredConsented) {
-      toast.error("필수 동의 항목을 모두 동의해주세요.");
-      return;
-    }
+  const handleAgreeAll = () => {
+    const allConsents: Record<string, boolean> = {};
+    consentItems.forEach(item => {
+      allConsents[item.field_key] = true;
+    });
+    setConsents(allConsents);
+    toast.success("모든 항목에 동의하셨습니다.");
     
     if (!sessionId) {
       toast.warning("세션 정보가 없어 서명 저장이 제한됩니다. 계속하시겠습니까?");
@@ -337,47 +340,42 @@ const ConsentChecklist = ({ projectId: urlProjectId, speakerEmail: urlSpeakerEma
       <Card>
         <CardContent className="pt-6">
           <div className="space-y-6">
-            <Accordion type="single" collapsible className="w-full">
+            <div className="space-y-3">
               {consentItems.map((item) => (
-                <AccordionItem key={item.field_key} value={item.field_key}>
-                  <AccordionTrigger className="hover:no-underline">
-                    <div className="flex items-center gap-2 text-left">
-                      <span className="font-medium">{item.title}</span>
-                      <span className={`text-sm ${item.required ? 'text-destructive' : 'text-muted-foreground'}`}>
-                        ({item.required ? '필수' : '선택'})
-                      </span>
+                <div key={item.field_key} className="border rounded-lg p-4 space-y-3">
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      id={item.field_key}
+                      checked={consents[item.field_key] === true}
+                      onCheckedChange={(checked) => handleConsentChange(item.field_key, checked === true)}
+                      className="mt-1"
+                    />
+                    <div className="flex-1 space-y-2">
+                      <label htmlFor={item.field_key} className="flex items-center gap-2 cursor-pointer">
+                        <span className="font-medium">{item.title}</span>
+                        <span className={`text-sm ${item.required ? 'text-destructive' : 'text-muted-foreground'}`}>
+                          ({item.required ? '필수' : '선택'})
+                        </span>
+                      </label>
+                      <Accordion type="single" collapsible>
+                        <AccordionItem value="content" className="border-0">
+                          <AccordionTrigger className="py-2 text-sm text-muted-foreground hover:no-underline">
+                            내용 보기
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <div className="pl-4 pr-4 py-3 bg-muted/50 rounded-lg">
+                              <pre className="text-sm whitespace-pre-wrap font-sans text-muted-foreground">
+                                {item.content}
+                              </pre>
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      </Accordion>
                     </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="space-y-4 pt-2">
-                      <div className="pl-4 pr-4 py-3 bg-muted/50 rounded-lg">
-                        <pre className="text-sm whitespace-pre-wrap font-sans text-muted-foreground">
-                          {item.content}
-                        </pre>
-                      </div>
-                      <div className="flex gap-2 justify-end">
-                        <Button
-                          size="sm"
-                          onClick={() => handleConsentChange(item.field_key, true)}
-                          className={consents[item.field_key] === true ? 'bg-primary' : 'bg-muted text-muted-foreground hover:bg-primary hover:text-primary-foreground'}
-                        >
-                          {consents[item.field_key] === true && <CheckCircle2 className="h-4 w-4 mr-1" />}
-                          동의합니다
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleConsentChange(item.field_key, false)}
-                          className={consents[item.field_key] === false ? 'border-destructive text-destructive' : ''}
-                        >
-                          동의하지 않습니다
-                        </Button>
-                      </div>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
+                  </div>
+                </div>
               ))}
-            </Accordion>
+            </div>
 
             {!allRequiredConsented && (
               <div className="flex items-center gap-2 p-3 bg-destructive/10 text-destructive rounded-lg text-sm">
@@ -389,10 +387,10 @@ const ConsentChecklist = ({ projectId: urlProjectId, speakerEmail: urlSpeakerEma
             <Button 
               type="button" 
               className="w-full" 
-              disabled={!allRequiredConsented}
-              onClick={handleComplete}
+              onClick={handleAgreeAll}
             >
-              동의 완료
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+              모두 동의
             </Button>
           </div>
         </CardContent>
